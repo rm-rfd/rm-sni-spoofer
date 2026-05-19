@@ -112,6 +112,7 @@ def build_bundle(dist_dir: Path, build_dir: Path, *, dry_run: bool) -> None:
         "--noconfirm",
         "--clean",
         "--onedir",
+        "--windowed",
         "--hidden-import",
         "gui",
         "--name",
