@@ -16,10 +16,11 @@ class XrayConfigError(ValueError):
 
 
 @dataclass(frozen=True)
-class VlessProfile:
+class XrayShareProfile:
+    protocol: str
     address: str
     port: int
-    user_id: str
+    credential: str
     query: dict[str, str]
     tag: str
 
@@ -64,26 +65,40 @@ def _is_ip_address(value: str) -> bool:
     return True
 
 
-def parse_vless_url(vless_url: str) -> VlessProfile:
-    parsed = urlparse(vless_url.strip())
-    if parsed.scheme.lower() != "vless":
-        raise XrayConfigError("VLESS_URL must start with vless://")
+def parse_xray_share_url(share_url: str) -> XrayShareProfile:
+    parsed = urlparse(share_url.strip())
+    protocol = parsed.scheme.lower()
+    if protocol not in {"vless", "trojan"}:
+        raise XrayConfigError("VLESS_URL must start with vless:// or trojan://")
     if not parsed.username:
-        raise XrayConfigError("VLESS_URL is missing the UUID")
+        if protocol == "vless":
+            raise XrayConfigError("VLESS_URL is missing the UUID")
+        raise XrayConfigError("VLESS_URL is missing the password")
     if not parsed.hostname:
         raise XrayConfigError("VLESS_URL is missing the host")
-    try:
-        normalized_uuid = str(uuid.UUID(unquote(parsed.username)))
-    except ValueError as exc:
-        raise XrayConfigError("VLESS_URL contains an invalid UUID") from exc
+
+    raw_credential = unquote(parsed.username)
+    if protocol == "vless":
+        try:
+            credential = str(uuid.UUID(raw_credential))
+        except ValueError as exc:
+            raise XrayConfigError("VLESS_URL contains an invalid UUID") from exc
+    else:
+        credential = raw_credential
+
     query = _last_query_values(parsed.query)
-    return VlessProfile(
+    return XrayShareProfile(
+        protocol=protocol,
         address=parsed.hostname,
         port=parsed.port or 443,
-        user_id=normalized_uuid,
+        credential=credential,
         query=query,
-        tag=unquote(parsed.fragment or "vless-profile"),
+        tag=unquote(parsed.fragment or f"{protocol}-profile"),
     )
+
+
+def parse_vless_url(vless_url: str) -> XrayShareProfile:
+    return parse_xray_share_url(vless_url)
 
 
 def _build_tls_settings(query: dict[str, str], default_server_name: str | None = None) -> dict[str, Any]:
@@ -143,18 +158,66 @@ def _build_transport_settings(network: str, query: dict[str, str]) -> dict[str, 
         if mode:
             xhttp_settings["mode"] = mode
         return {"xhttpSettings": xhttp_settings}
-    raise XrayConfigError(f"unsupported VLESS transport type: {network}")
+    raise XrayConfigError(f"unsupported transport type: {network}")
+
+
+def _build_proxy_outbound(
+    profile: XrayShareProfile,
+    relay_host: str,
+    relay_port: int,
+    stream_settings: dict[str, Any],
+) -> dict[str, Any]:
+    flow = profile.query.get("flow")
+
+    if profile.protocol == "vless":
+        user: dict[str, Any] = {
+            "id": profile.credential,
+            "encryption": profile.query.get("encryption", "none"),
+        }
+        if flow:
+            user["flow"] = flow
+        settings: dict[str, Any] = {
+            "vnext": [
+                {
+                    "address": relay_host,
+                    "port": relay_port,
+                    "users": [user],
+                }
+            ]
+        }
+    elif profile.protocol == "trojan":
+        server: dict[str, Any] = {
+            "address": relay_host,
+            "port": relay_port,
+            "password": profile.credential,
+        }
+        if flow:
+            server["flow"] = flow
+        settings = {"servers": [server]}
+    else:
+        raise XrayConfigError(f"unsupported share link protocol: {profile.protocol}")
+
+    return {
+        "tag": "proxy",
+        "protocol": profile.protocol,
+        "settings": settings,
+        "streamSettings": stream_settings,
+    }
 
 
 def build_xray_config(
-    profile: VlessProfile,
+    profile: XrayShareProfile,
     proxy_settings: XrayLocalProxySettings,
     relay_host: str,
     relay_port: int,
 ) -> dict[str, Any]:
     query = profile.query
     network = (query.get("type") or "tcp").strip().lower()
-    security = (query.get("security") or "none").strip().lower()
+    default_security = "tls" if profile.protocol == "trojan" else "none"
+    security = (query.get("security") or default_security).strip().lower()
+
+    if profile.protocol == "trojan" and security != "tls":
+        raise XrayConfigError("Trojan share links must use security=tls")
 
     stream_settings: dict[str, Any] = {"network": network, "security": security}
     if security == "tls":
@@ -163,17 +226,9 @@ def build_xray_config(
         if tls_settings:
             stream_settings["tlsSettings"] = tls_settings
     elif security != "none":
-        raise XrayConfigError(f"unsupported VLESS security type: {security}")
+        raise XrayConfigError(f"unsupported security type: {security}")
 
     stream_settings.update(_build_transport_settings(network, query))
-
-    user: dict[str, Any] = {
-        "id": profile.user_id,
-        "encryption": query.get("encryption", "none"),
-    }
-    flow = query.get("flow")
-    if flow:
-        user["flow"] = flow
 
     return {
         "log": {"loglevel": proxy_settings.log_level},
@@ -206,20 +261,7 @@ def build_xray_config(
             ],
         },
         "outbounds": [
-            {
-                "tag": "proxy",
-                "protocol": "vless",
-                "settings": {
-                    "vnext": [
-                        {
-                            "address": relay_host,
-                            "port": relay_port,
-                            "users": [user],
-                        }
-                    ]
-                },
-                "streamSettings": stream_settings,
-            },
+            _build_proxy_outbound(profile, relay_host, relay_port, stream_settings),
             {"tag": "direct", "protocol": "freedom", "settings": {}},
         ],
     }

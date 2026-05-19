@@ -207,8 +207,8 @@ marimo/_lsp/
 __marimo__/
 
 
-how-to-run.md
+old/
 dist/
 build/
 .venv/
-dist-gui-smoke/
+.gitproxy

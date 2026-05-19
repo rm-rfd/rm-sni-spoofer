@@ -11,7 +11,7 @@ import threading
 from app_config import get_app_dir, get_config_port, get_config_string, load_config
 from utils.network_tools import get_default_interface_ipv4
 from utils.packet_templates import ClientHelloMaker
-from utils.xray import XrayLocalProxySettings, XrayProcessManager, build_xray_config, parse_vless_url
+from utils.xray import XrayLocalProxySettings, XrayProcessManager, build_xray_config, parse_xray_share_url
 from fake_tcp import FakeInjectiveConnection, FakeTcpInjector
 
 
@@ -31,9 +31,9 @@ fake_injective_connections: dict[tuple, FakeInjectiveConnection] = {}
 
 
 def resolve_connect_port(config_data: dict[str, object]) -> int:
-    vless_url = get_config_string(config_data, "VLESS_URL", "").strip()
-    if vless_url:
-        return parse_vless_url(vless_url).port
+    share_url = get_config_string(config_data, "VLESS_URL", "").strip()
+    if share_url:
+        return parse_xray_share_url(share_url).port
     return get_config_port(config_data, "CONNECT_PORT", 443)
 
 
@@ -85,8 +85,8 @@ def get_xray_relay_host() -> str:
 
 def build_xray_manager() -> tuple[XrayProcessManager | None, XrayLocalProxySettings | None]:
     ensure_runtime_settings_loaded()
-    vless_url = get_config_string(config, "VLESS_URL", "").strip()
-    if not vless_url:
+    share_url = get_config_string(config, "VLESS_URL", "").strip()
+    if not share_url:
         return None, None
 
     xray_settings = XrayLocalProxySettings(
@@ -102,9 +102,9 @@ def build_xray_manager() -> tuple[XrayProcessManager | None, XrayLocalProxySetti
     if LISTEN_PORT in {xray_settings.socks_port, xray_settings.http_port}:
         raise ValueError("LISTEN_PORT must be different from XRAY_SOCKS_PORT and XRAY_HTTP_PORT")
 
-    vless_profile = parse_vless_url(vless_url)
+    share_profile = parse_xray_share_url(share_url)
     relay_host = get_xray_relay_host()
-    xray_config = build_xray_config(vless_profile, xray_settings, relay_host, LISTEN_PORT)
+    xray_config = build_xray_config(share_profile, xray_settings, relay_host, LISTEN_PORT)
     return XrayProcessManager(xray_settings.binary_path, xray_config), xray_settings
 
 

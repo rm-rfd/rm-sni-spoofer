@@ -1,0 +1,97 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - '*'
+      - '**'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Release tag to create or update, for example v1.0.0
+        required: true
+        type: string
+      release_name:
+        description: Optional release title. Leave empty to use the tag.
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build dependencies
+        run: python -m pip install --upgrade pip ; python -m pip install -r requirements-build.txt
+
+      - name: Resolve release metadata
+        id: metadata
+        shell: pwsh
+        run: |
+          $eventName = '${{ github.event_name }}'
+          if ($eventName -eq 'workflow_dispatch') {
+            $tagName = '${{ github.event.inputs.tag_name }}'.Trim()
+            $releaseName = '${{ github.event.inputs.release_name }}'.Trim()
+          }
+          else {
+            $tagName = '${{ github.ref_name }}'.Trim()
+            $releaseName = $tagName
+          }
+          if ([string]::IsNullOrWhiteSpace($tagName)) {
+            throw 'tag_name is required.'
+          }
+          if ([string]::IsNullOrWhiteSpace($releaseName)) {
+            $releaseName = $tagName
+          }
+          $zipName = "SNI-Spoofing-GUI-$tagName.zip"
+          "tag_name=$tagName" >> $env:GITHUB_OUTPUT
+          "release_name=$releaseName" >> $env:GITHUB_OUTPUT
+          "zip_name=$zipName" >> $env:GITHUB_OUTPUT
+          "zip_path=release/$zipName" >> $env:GITHUB_OUTPUT
+
+      - name: Build bundle and release zip
+        run: python build.py --zip-file "${{ steps.metadata.outputs.zip_path }}"
+
+      - name: Verify zip layout
+        shell: pwsh
+        run: |
+          $zipPath = '${{ steps.metadata.outputs.zip_path }}'
+          if (-not (Test-Path $zipPath)) {
+            throw "Release zip not found: $zipPath"
+          }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $zipPath))
+          try {
+            if ($archive.Entries.Count -eq 0) {
+              throw 'Release zip is empty.'
+            }
+            $nestedRoot = 'SNI-Spoofing-GUI/'
+            foreach ($entry in $archive.Entries) {
+              if ($entry.FullName.StartsWith($nestedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Release zip contains nested root folder: $($entry.FullName)"
+              }
+            }
+          }
+          finally {
+            $archive.Dispose()
+          }
+
+      - name: Publish release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.metadata.outputs.tag_name }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.metadata.outputs.release_name }}
+          files: ${{ steps.metadata.outputs.zip_path }}
+          overwrite_files: true

@@ -5,12 +5,14 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import zipfile
 
 
 APP_NAME = "SNI-Spoofing-GUI"
 PROJECT_ROOT = Path(__file__).resolve().parent
 ENTRYPOINT = PROJECT_ROOT / "main.py"
-RUNTIME_FILES = ["config.json", "README.md", "how-to-run.md", "LICENSE"]
+RUNTIME_FILES = ["config.json", "README.md", "LICENSE"]
+OPTIONAL_RUNTIME_FILES = []
 RUNTIME_DIRECTORIES = ["xray"]
 
 
@@ -32,6 +34,10 @@ def parse_args() -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help="Print the build and staging steps without executing them.",
+    )
+    parser.add_argument(
+        "--zip-file",
+        help="Optional path to a zip archive created from the contents of the built bundle.",
     )
     return parser.parse_args()
 
@@ -92,8 +98,27 @@ def require_paths() -> None:
 def stage_runtime_files(bundle_dir: Path, *, dry_run: bool) -> None:
     for file_name in RUNTIME_FILES:
         copy_file(PROJECT_ROOT / file_name, bundle_dir / file_name, dry_run=dry_run)
+    for file_name in OPTIONAL_RUNTIME_FILES:
+        file_path = PROJECT_ROOT / file_name
+        if file_path.is_file():
+            copy_file(file_path, bundle_dir / file_name, dry_run=dry_run)
     for directory_name in RUNTIME_DIRECTORIES:
         copy_directory(PROJECT_ROOT / directory_name, bundle_dir / directory_name, dry_run=dry_run)
+
+
+def create_bundle_zip(bundle_dir: Path, zip_path: Path, *, dry_run: bool) -> None:
+    print(f"zip {bundle_dir} -> {zip_path}")
+    if dry_run:
+        return
+    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    if zip_path.exists():
+        zip_path.unlink()
+
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(bundle_dir.rglob("*")):
+            if path.is_dir():
+                continue
+            archive.write(path, path.relative_to(bundle_dir))
 
 
 def build_bundle(dist_dir: Path, build_dir: Path, *, dry_run: bool) -> None:
@@ -135,7 +160,14 @@ def main() -> int:
     dist_dir = (PROJECT_ROOT / args.dist_dir).resolve()
     build_dir = (PROJECT_ROOT / args.build_dir).resolve()
     build_bundle(dist_dir, build_dir, dry_run=args.dry_run)
-    print(f"Build bundle ready at {dist_dir / APP_NAME}")
+    bundle_dir = dist_dir / APP_NAME
+    if args.zip_file:
+        zip_path = Path(args.zip_file)
+        if not zip_path.is_absolute():
+            zip_path = PROJECT_ROOT / zip_path
+        create_bundle_zip(bundle_dir, zip_path.resolve(), dry_run=args.dry_run)
+        print(f"Release zip ready at {zip_path.resolve()}")
+    print(f"Build bundle ready at {bundle_dir}")
     return 0
 
 

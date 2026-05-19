@@ -6,11 +6,11 @@ The important detail is that the injected packet is not meant to become part of 
 
 After that fake packet is sent, the program stops packet interception for the connection and relays traffic normally between the local client and the configured upstream socket.
 
-When `VLESS_URL` is configured, the program also starts a bundled `xray.exe` child process. Xray exposes local SOCKS5 and HTTP proxy ports, and its VLESS outbound talks to this relay listener.
+When `VLESS_URL` is configured, the program also starts a bundled `xray.exe` child process. Xray exposes local SOCKS5 and HTTP proxy ports, and its outbound talks to this relay listener.
 
-You can now paste the original remote VLESS share link into `VLESS_URL`. The app rewrites the Xray dial target to the local relay automatically while preserving the original VLESS transport and TLS settings from the share link.
+You can now paste the original remote `vless://` or `trojan://` share link into `VLESS_URL`. The app rewrites the Xray dial target to the local relay automatically while preserving the original transport and TLS settings from the share link.
 
-For this app to work in VLESS mode, the share link must use remote port `443`. Other VLESS remote ports are not supported by this relay flow.
+For this app to work in share-link mode, the remote port must be `443`. Other remote ports are not supported by this relay flow.
 
 ## What The Program Actually Does
 
@@ -50,7 +50,7 @@ The current codebase is intentionally narrow:
 - Only one fake SNI is configured for the whole process.
 - The program forwards to one configured upstream endpoint, not many.
 - There is no UDP or QUIC support.
-- SOCKS, HTTP, and VLESS are handled by the bundled Xray child process when `VLESS_URL` is configured.
+- SOCKS, HTTP, and supported Xray share links are handled by the bundled Xray child process when `VLESS_URL` is configured.
 
 ## How The Code Is Organized
 
@@ -60,7 +60,7 @@ The current codebase is intentionally narrow:
 - `monitor_connection.py`: stores the per-connection state used during packet monitoring.
 - `utils/packet_templates.py`: builds the fake TLS ClientHello payload.
 - `utils/network_tools.py`: discovers the local IPv4 address used to reach the configured upstream IP.
-- `utils/xray.py`: parses the VLESS URL, generates the Xray JSON config, validates it, and manages the Xray child process.
+- `utils/xray.py`: parses supported Xray share links, generates the Xray JSON config, validates it, and manages the Xray child process.
 
 ## Configuration
 
@@ -87,7 +87,7 @@ The runtime behavior is controlled by `config.json`:
 - `LISTEN_HOST`: local bind address for the relay.
 - `LISTEN_PORT`: local TCP port that clients connect to.
 - `CONNECT_IP`: fixed remote IPv4 address the program will connect to.
-- `VLESS_URL`: the original VLESS share link. Its remote port is also used as the relay's upstream TCP port when this field is set, and it must be `443` for the relay flow to work.
+- `VLESS_URL`: the original Xray share link. `vless://` and `trojan://` are supported. Its remote port is also used as the relay's upstream TCP port when this field is set, and it must be `443` for the relay flow to work.
 - `FAKE_SNI`: the decoy SNI inserted into the synthetic ClientHello.
 - `CONNECT_PORT`: optional legacy fallback port used only when `VLESS_URL` is empty. If omitted, it defaults to `443`.
 - `XRAY_BINARY_PATH`: path to the bundled Xray executable.

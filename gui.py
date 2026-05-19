@@ -110,7 +110,7 @@ class ControlPanel(tk.Tk):
         )
         self.log_level_combo.grid(row=2, column=1, sticky="ew", pady=6)
 
-        ttk.Label(settings_frame, text="VLESS_URL").grid(row=3, column=0, sticky="nw", padx=(0, 8), pady=(10, 6))
+        ttk.Label(settings_frame, text="VLESS_URL (vless:// or trojan://)").grid(row=3, column=0, sticky="nw", padx=(0, 8), pady=(10, 6))
         vless_frame = ttk.Frame(settings_frame)
         vless_frame.grid(row=3, column=1, columnspan=3, sticky="nsew", pady=(10, 6))
         vless_frame.columnconfigure(0, weight=1)
