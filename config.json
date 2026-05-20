@@ -7,7 +7,7 @@
   "XRAY_PROFILES": [],
   "XRAY_ACTIVE_PROFILE_ID": "",
   "XRAY_BINARY_PATH": "xray\\xray.exe",
-  "XRAY_SOCKS_PORT": 10908,
-  "XRAY_HTTP_PORT": 10909,
+  "XRAY_SOCKS_PORT": 10808,
+  "XRAY_HTTP_PORT": 10809,
   "XRAY_LOG_LEVEL": "warning"
 }

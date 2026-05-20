@@ -107,7 +107,6 @@ class ControlPanel(tk.Tk):
         self.http_port_var = tk.StringVar()
         self.log_level_var = tk.StringVar(value="warning")
         self.profile_status_var = tk.StringVar(value="No active Xray profile selected.")
-        self.selected_profile_url_var = tk.StringVar(value="")
         self.status_var = tk.StringVar(value="Stopped")
         self.donation_address_var = tk.StringVar(value=DONATION_ADDRESS)
         self._context_menu_target: tk.Misc | None = None
@@ -295,22 +294,6 @@ class ControlPanel(tk.Tk):
             textvariable=self.profile_status_var,
             foreground="#4b5563",
         ).grid(row=2, column=0, sticky="w", pady=(6, 0))
-
-        profile_preview_frame = ttk.Frame(profiles_frame)
-        profile_preview_frame.grid(row=3, column=0, sticky="ew", pady=(6, 0))
-        profile_preview_frame.columnconfigure(1, weight=1)
-        ttk.Label(profile_preview_frame, text="Selected URL").grid(
-            row=0,
-            column=0,
-            sticky="w",
-            padx=(0, 8),
-        )
-        ttk.Entry(
-            profile_preview_frame,
-            textvariable=self.selected_profile_url_var,
-            state="readonly",
-            font=("Consolas", 9),
-        ).grid(row=0, column=1, sticky="ew")
 
         actions = ttk.Frame(container)
         actions.grid(row=2, column=0, sticky="ew", pady=(0, 12))
@@ -637,12 +620,6 @@ class ControlPanel(tk.Tk):
 
     def _update_profile_selection_state(self) -> None:
         selection = self.profile_tree.selection()
-        if len(selection) == 1 and selection[0] in self.xray_profiles:
-            self.selected_profile_url_var.set(str(self.xray_profiles[selection[0]].get("url", "")))
-        elif len(selection) > 1:
-            self.selected_profile_url_var.set(f"{len(selection)} profiles selected")
-        else:
-            self.selected_profile_url_var.set("")
 
         active_profile = self.xray_profiles.get(self.active_profile_id)
         if active_profile is None:
