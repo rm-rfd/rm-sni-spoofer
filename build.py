@@ -11,9 +11,10 @@ import zipfile
 APP_NAME = "SNI-Spoofing-GUI"
 PROJECT_ROOT = Path(__file__).resolve().parent
 ENTRYPOINT = PROJECT_ROOT / "main.py"
-RUNTIME_FILES = ["config.json"]
-OPTIONAL_RUNTIME_FILES = []
+RUNTIME_FILES = ["config.json", "logo.ico"]
+OPTIONAL_RUNTIME_FILES = ["logo.png"]
 RUNTIME_DIRECTORIES = ["xray"]
+APP_ICON_PATH = PROJECT_ROOT / "logo.ico"
 
 
 def parse_args() -> argparse.Namespace:
@@ -85,6 +86,8 @@ def copy_directory(source: Path, destination: Path, *, dry_run: bool) -> None:
 def require_paths() -> None:
     if not ENTRYPOINT.is_file():
         raise FileNotFoundError(f"entrypoint not found: {ENTRYPOINT}")
+    if not APP_ICON_PATH.is_file():
+        raise FileNotFoundError(f"app icon not found: {APP_ICON_PATH}")
     for file_name in RUNTIME_FILES:
         file_path = PROJECT_ROOT / file_name
         if not file_path.is_file():
@@ -140,6 +143,8 @@ def build_bundle(dist_dir: Path, build_dir: Path, *, dry_run: bool) -> None:
         "--windowed",
         "--hidden-import",
         "gui",
+        "--icon",
+        str(APP_ICON_PATH),
         "--name",
         APP_NAME,
         "--distpath",

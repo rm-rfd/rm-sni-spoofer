@@ -27,6 +27,27 @@ from utils.delay_test import DelayTestResult, measure_delay_with_temporary_runti
 
 DONATION_NETWORK_LABEL = "USDT (BEP20):"
 DONATION_ADDRESS = "0x6411d42175578CFafadfB6b536A4C97F0f6883Aa"
+APP_ICON_ICO_PATH = Path(get_app_dir()) / "logo.ico"
+APP_ICON_PNG_PATH = Path(get_app_dir()) / "logo.png"
+
+
+def _rtl_line(text: str) -> str:
+    if not text:
+        return ""
+    return f"\u202B{text}\u202C"
+
+
+HOW_TO_RUN_TEXT = """
+1. برنامه را با دسترسی Administrator باز کنید.
+2. کانفیگ های Xray خود را از طریق دکمه Add در رابط کاربری اضافه کنید.
+3. کانفیگ ها را از داخل رابط کاربری تست کنید. اگر یک کانفیگ ناموفق شد، ممکن است لازم باشد چند بار دیگر آن را تست کنید، چون گاهی false negative رخ می دهد و ممکن است کانفیگ در عمل سالم باشد.
+4. کانفیگی را که کار می کند انتخاب کنید و روی Set Active بزنید.
+5. برای اجرای relay با کانفیگ فعال، روی Start Relay بزنید.
+
+نکته ها:
+- هنگام شروع relay، فقط پروفایل فعال استفاده می شود.
+- تست Delay معیار مفیدی است، اما همیشه دقیق نیست.
+"""
 
 
 class ShareUrlDialog(simpledialog.Dialog):
@@ -84,12 +105,52 @@ class ShareUrlDialog(simpledialog.Dialog):
         return True
 
 
+class HowToRunDialog(simpledialog.Dialog):
+    def body(self, master: tk.Misc) -> tk.Widget:
+        container = ttk.Frame(master, padding=8)
+        container.grid(row=0, column=0, sticky="nsew")
+        container.columnconfigure(0, weight=1)
+
+        ttk.Label(
+            container,
+            text="راهنمای اجرای برنامه",
+            font=("Segoe UI Semibold", 11),
+            anchor="e",
+            justify="right",
+        ).grid(row=0, column=0, sticky="e", pady=(0, 8))
+
+        instructions_frame = ttk.Frame(container, padding=12, relief="solid", borderwidth=1)
+        instructions_frame.grid(row=1, column=0, sticky="ew")
+        instructions_frame.columnconfigure(0, weight=1)
+
+        ttk.Label(
+            instructions_frame,
+            text="\n".join(_rtl_line(line) for line in HOW_TO_RUN_TEXT.splitlines()),
+            font=("Segoe UI", 10),
+            justify="right",
+            anchor="e",
+            wraplength=620,
+        ).grid(row=0, column=0, sticky="e")
+        return None
+
+    def buttonbox(self) -> None:
+        box = ttk.Frame(self)
+        box.pack(anchor="e", padx=8, pady=(0, 8))
+
+        close_button = ttk.Button(box, text="Close", command=self.cancel)
+        close_button.pack()
+        close_button.focus_set()
+        self.bind("<Return>", self.cancel)
+        self.bind("<Escape>", self.cancel)
+
+
 class ControlPanel(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("SNI-Spoofing Control Panel")
         self.geometry("980x720")
         self.minsize(860, 620)
+        self._window_icon: tk.PhotoImage | None = None
 
         self.process: subprocess.Popen[str] | None = None
         self.delay_test_in_progress = False
@@ -112,6 +173,7 @@ class ControlPanel(tk.Tk):
         self._context_menu_target: tk.Misc | None = None
 
         self._configure_style()
+        self._configure_icon()
         self._build_layout()
         self._install_context_menus()
         self.load_form_from_disk()
@@ -123,6 +185,25 @@ class ControlPanel(tk.Tk):
         style = ttk.Style(self)
         if "vista" in style.theme_names():
             style.theme_use("vista")
+
+    def _configure_icon(self) -> None:
+        try:
+            if APP_ICON_ICO_PATH.is_file():
+                self.iconbitmap(default=str(APP_ICON_ICO_PATH))
+                return
+        except tk.TclError:
+            pass
+
+        if not APP_ICON_PNG_PATH.is_file():
+            return
+        try:
+            self._window_icon = tk.PhotoImage(file=str(APP_ICON_PNG_PATH))
+        except tk.TclError:
+            return
+        self.iconphoto(True, self._window_icon)
+
+    def _show_how_to_run_dialog(self) -> None:
+        HowToRunDialog(self, "راهنمای اجرا")
 
     def _build_layout(self) -> None:
         self.columnconfigure(0, weight=1)
@@ -138,6 +219,9 @@ class ControlPanel(tk.Tk):
         header.columnconfigure(0, weight=1)
         ttk.Label(header, text="SNI-Spoofing-GUI", font=("Segoe UI Semibold", 18)).grid(
             row=0, column=0, sticky="w"
+        )
+        ttk.Button(header, text="نحوه اجرا", command=self._show_how_to_run_dialog).grid(
+            row=0, column=1, sticky="e"
         )
         ttk.Label(
             header,
@@ -163,31 +247,31 @@ class ControlPanel(tk.Tk):
         settings_frame.columnconfigure(3, weight=1)
         settings_frame.rowconfigure(3, weight=1)
 
-        ttk.Label(settings_frame, text="CONNECT_IP").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=6)
+        ttk.Label(settings_frame, text="CONNECT IP").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=6)
         ttk.Entry(settings_frame, textvariable=self.connect_ip_var).grid(
             row=0, column=1, sticky="ew", pady=6
         )
 
-        ttk.Label(settings_frame, text="FAKE_SNI").grid(row=0, column=2, sticky="w", padx=(16, 8), pady=6)
+        ttk.Label(settings_frame, text="FAKE SNI").grid(row=0, column=2, sticky="w", padx=(16, 8), pady=6)
         ttk.Entry(settings_frame, textvariable=self.fake_sni_var).grid(
             row=0, column=3, sticky="ew", pady=6
         )
 
-        ttk.Label(settings_frame, text="XRAY_SOCKS_PORT").grid(
+        ttk.Label(settings_frame, text="SOCKS PORT").grid(
             row=1, column=0, sticky="w", padx=(0, 8), pady=6
         )
         ttk.Entry(settings_frame, textvariable=self.socks_port_var).grid(
             row=1, column=1, sticky="ew", pady=6
         )
 
-        ttk.Label(settings_frame, text="XRAY_HTTP_PORT").grid(
+        ttk.Label(settings_frame, text="HTTP PORT").grid(
             row=1, column=2, sticky="w", padx=(16, 8), pady=6
         )
         ttk.Entry(settings_frame, textvariable=self.http_port_var).grid(
             row=1, column=3, sticky="ew", pady=6
         )
 
-        ttk.Label(settings_frame, text="XRAY_LOG_LEVEL").grid(
+        ttk.Label(settings_frame, text="LOG LEVEL").grid(
             row=2, column=0, sticky="w", padx=(0, 8), pady=6
         )
         self.log_level_combo = ttk.Combobox(
