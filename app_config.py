@@ -16,7 +16,6 @@ XRAY_ACTIVE_PROFILE_ID_KEY = "XRAY_ACTIVE_PROFILE_ID"
 GUI_EDITABLE_FIELDS = (
     "CONNECT_IP",
     "FAKE_SNI",
-    "XRAY_URL",
     "XRAY_SOCKS_PORT",
     "XRAY_HTTP_PORT",
     "XRAY_LOG_LEVEL",
@@ -44,9 +43,10 @@ def load_config(config_path: str | None = None) -> dict[str, Any]:
 
 
 def save_config(config: dict[str, Any], config_path: str | None = None) -> None:
+    config_to_save = normalize_config(config)
     config_path = Path(get_config_path(config_path))
     with config_path.open("w", encoding="utf-8", newline="\n") as config_file:
-        json.dump(config, config_file, ensure_ascii=True, indent=2)
+        json.dump(config_to_save, config_file, ensure_ascii=True, indent=2)
         config_file.write("\n")
 
 
@@ -108,30 +108,17 @@ def get_active_xray_profile(config: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
-def set_active_xray_profile(config: dict[str, Any], share_url: str) -> dict[str, Any]:
+def get_active_xray_share_url(
+    config: dict[str, Any],
+    *,
+    allow_legacy_fallback: bool = True,
+) -> str:
     active_profile = get_active_xray_profile(config)
-    updated_active_profile = build_xray_profile_record(
-        share_url,
-        profile_id=None if active_profile is None else str(active_profile["id"]),
-    )
-    profiles = get_xray_profiles(config)
-
-    updated_profiles: list[dict[str, Any]] = []
-    if active_profile is None:
-        updated_profiles.append(updated_active_profile)
-    else:
-        for profile in profiles:
-            if profile["id"] == active_profile["id"]:
-                updated_profiles.append(updated_active_profile)
-            else:
-                updated_profiles.append(profile)
-
-    updated_config = dict(config)
-    updated_config[XRAY_PROFILES_KEY] = updated_profiles
-    updated_config[XRAY_ACTIVE_PROFILE_ID_KEY] = updated_active_profile["id"]
-    updated_config["XRAY_URL"] = updated_active_profile["url"]
-    updated_config.pop("VLESS_URL", None)
-    return updated_config
+    if active_profile is not None:
+        return str(active_profile["url"])
+    if allow_legacy_fallback:
+        return get_legacy_xray_url(config)
+    return ""
 
 
 def replace_xray_profiles(
@@ -160,9 +147,7 @@ def replace_xray_profiles(
     updated_config[XRAY_ACTIVE_PROFILE_ID_KEY] = (
         "" if resolved_active_profile is None else resolved_active_profile["id"]
     )
-    updated_config["XRAY_URL"] = (
-        "" if resolved_active_profile is None else resolved_active_profile["url"]
-    )
+    updated_config.pop("XRAY_URL", None)
     updated_config.pop("VLESS_URL", None)
     return normalize_config(updated_config)
 
@@ -179,7 +164,7 @@ def normalize_config(config: dict[str, Any]) -> dict[str, Any]:
     active_profile = _resolve_active_xray_profile(normalized_config, profiles)
     normalized_config[XRAY_PROFILES_KEY] = profiles
     normalized_config[XRAY_ACTIVE_PROFILE_ID_KEY] = "" if active_profile is None else active_profile["id"]
-    normalized_config["XRAY_URL"] = _resolve_active_xray_url(normalized_config, active_profile)
+    normalized_config.pop("XRAY_URL", None)
     normalized_config.pop("VLESS_URL", None)
     return normalized_config
 
@@ -241,15 +226,6 @@ def _resolve_active_xray_profile(
                 return profile
 
     return profiles[0]
-
-
-def _resolve_active_xray_url(
-    config: dict[str, Any],
-    active_profile: dict[str, Any] | None,
-) -> str:
-    if active_profile is not None:
-        return str(active_profile["url"])
-    return get_legacy_xray_url(config)
 
 
 def get_config_string(config: dict[str, Any], name: str, default: str = "") -> str:

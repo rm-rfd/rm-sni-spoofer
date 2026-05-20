@@ -12,7 +12,13 @@ import tempfile
 import threading
 import time
 
-from app_config import get_app_dir, get_config_port, get_config_string, save_config
+from app_config import (
+    get_active_xray_share_url,
+    get_app_dir,
+    get_config_port,
+    get_config_string,
+    save_config,
+)
 from utils.xray import parse_xray_share_url
 
 
@@ -230,11 +236,9 @@ def measure_delay_with_temporary_runtime(
     target_port: int = DELAY_TEST_TARGET_PORT,
     log_callback: LogCallback | None = None,
 ) -> DelayTestResult:
-    share_url = get_config_string(config, "XRAY_URL", "").strip()
+    share_url = get_active_xray_share_url(config)
     if not share_url:
-        share_url = get_config_string(config, "VLESS_URL", "").strip()
-    if not share_url:
-        raise DelayTestError("XRAY_URL must be configured before running the delay test")
+        raise DelayTestError("An active Xray profile must be configured before running the delay test")
     parse_xray_share_url(share_url)
 
     listen_host = _normalize_bind_host(get_config_string(config, "LISTEN_HOST", "0.0.0.0"))
