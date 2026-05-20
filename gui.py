@@ -440,13 +440,19 @@ class ControlPanel(tk.Tk):
         self._readonly_context_menu.add_separator()
         self._readonly_context_menu.add_command(label="Select All", command=self._context_select_all)
 
-        self._bind_context_menus(self)
+        self._profile_context_menu = tk.Menu(self, tearoff=False)
+        self._profile_context_menu.add_command(label="Copy", command=self._copy_selected_profiles)
+        self._profile_context_menu.add_command(label="Remove", command=self._remove_selected_profiles)
+        self._profile_context_menu.add_command(label="Edit", command=self._edit_selected_profile)
+        self._profile_context_menu.add_command(label="Set As Active", command=self._set_selected_profile_active)
+        self._profile_context_menu.add_command(label="Test Delay", command=self.test_delay)
 
-    def _bind_context_menus(self, root: tk.Misc) -> None:
-        for child in root.winfo_children():
-            if isinstance(child, (tk.Entry, ttk.Entry, ttk.Combobox, tk.Text)):
-                child.bind("<Button-3>", self._show_context_menu, add="+")
-            self._bind_context_menus(child)
+        self._bind_context_menu_classes()
+        self.profile_tree.bind("<Button-3>", self._show_profile_context_menu, add="+")
+
+    def _bind_context_menu_classes(self) -> None:
+        for widget_class in ("Entry", "TEntry", "TCombobox", "Text"):
+            self.bind_class(widget_class, "<Button-3>", self._show_context_menu, add="+")
 
     def _show_context_menu(self, event: tk.Event[tk.Misc]) -> str:
         widget = event.widget
@@ -576,6 +582,23 @@ class ControlPanel(tk.Tk):
 
         widget.select_range(0, "end")
         widget.icursor("end")
+
+    def _copy_selected_profiles(self) -> None:
+        profile_urls: list[str] = []
+        for profile_id in self._get_selected_profile_ids():
+            profile = self.xray_profiles.get(profile_id)
+            if profile is None:
+                continue
+
+            share_url = str(profile.get("url", "")).strip()
+            if share_url:
+                profile_urls.append(share_url)
+
+        if not profile_urls:
+            return
+
+        self.clipboard_clear()
+        self.clipboard_append("\n".join(profile_urls))
 
     def _profile_row_values(self, profile: dict[str, object]) -> tuple[str, ...]:
         profile_id = str(profile["id"])
@@ -729,6 +752,43 @@ class ControlPanel(tk.Tk):
             return ""
         self.profile_tree.selection_set((profile_id,))
         self._edit_selected_profile()
+        return "break"
+
+    def _show_profile_context_menu(self, event: tk.Event[tk.Misc]) -> str:
+        profile_id = str(self.profile_tree.identify_row(event.y))
+        selected_profile_ids = self._get_selected_profile_ids()
+
+        if profile_id:
+            if profile_id not in selected_profile_ids:
+                self.profile_tree.selection_set((profile_id,))
+                selected_profile_ids = (profile_id,)
+            self.profile_tree.focus(profile_id)
+            self.profile_tree.see(profile_id)
+            self._update_profile_selection_state()
+        elif not selected_profile_ids:
+            return ""
+
+        is_locked = self._is_process_running() or self.delay_test_in_progress
+        single_profile_selected = len(selected_profile_ids) == 1
+        can_set_active = (
+            not is_locked
+            and single_profile_selected
+            and selected_profile_ids[0] != self.active_profile_id
+        )
+
+        self._profile_context_menu.entryconfigure(0, state="normal")
+        self._profile_context_menu.entryconfigure(1, state="disabled" if is_locked else "normal")
+        self._profile_context_menu.entryconfigure(
+            2,
+            state="normal" if not is_locked and single_profile_selected else "disabled",
+        )
+        self._profile_context_menu.entryconfigure(3, state="normal" if can_set_active else "disabled")
+        self._profile_context_menu.entryconfigure(4, state="disabled" if is_locked else "normal")
+
+        try:
+            self._profile_context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self._profile_context_menu.grab_release()
         return "break"
 
     def _get_selected_profile_ids(self) -> tuple[str, ...]:
