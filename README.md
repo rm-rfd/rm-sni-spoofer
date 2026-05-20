@@ -10,9 +10,9 @@ The important detail is that the injected packet is not meant to become part of 
 
 After that fake packet is sent, the program stops packet interception for the connection and relays traffic normally between the local client and the configured upstream socket.
 
-When `XRAY_URL` is configured, the program also starts a bundled `xray.exe` child process. Xray exposes local SOCKS5 and HTTP proxy ports, and its outbound talks to this relay listener.
+When an active Xray profile is configured, the program also starts a bundled `xray.exe` child process. Xray exposes local SOCKS5 and HTTP proxy ports, and its outbound talks to this relay listener.
 
-You can now paste the original remote `vless://` or `trojan://` share link into `XRAY_URL`. The app rewrites the Xray dial target to the local relay automatically while preserving the original transport and TLS settings from the share link.
+In GUI mode, you can store multiple direct `vless://` or `trojan://` share links in an `XRAY Profiles` table, mark one row as active, and run delay tests for one or many selected rows. The app rewrites only the active share link's dial target to the local relay while preserving the original transport and TLS settings from the share link.
 
 For this app to work in share-link mode, the remote port must be `443`. Other remote ports are not supported by this relay flow.
 
@@ -41,7 +41,7 @@ In short: this is not rewriting the real TLS handshake in transit. It is sending
 
 The upstream destination is fixed in `config.json`, so every accepted local connection is forwarded to the same remote IP and port.
 
-The app now also ships with a small desktop control panel. It loads the most common runtime fields from `config.json`, starts and stops the relay, can run a V2rayN-style delay test, and shows live process output in one window.
+The app now also ships with a small desktop control panel. It loads the most common runtime fields and the persisted Xray profile list from `config.json`, starts and stops the relay, can run a V2rayN-style delay test across selected rows, and shows live process output in one window.
 
 ## Current Implementation Limits
 
@@ -53,6 +53,8 @@ The current codebase is intentionally narrow:
 - Only the `wrong_seq` bypass method is active.
 - Only one fake SNI is configured for the whole process.
 - The program forwards to one configured upstream endpoint, not many.
+- The GUI can store many direct share links, but only one active profile powers the relay at a time.
+- Remote subscription URL import is not implemented yet; the first version supports direct share links only.
 - There is no UDP or QUIC support.
 - SOCKS, HTTP, and supported Xray share links are handled by the bundled Xray child process when `XRAY_URL` is configured.
 
@@ -79,6 +81,19 @@ The runtime behavior is controlled by `config.json`:
   "CONNECT_PORT": 443,
   "FAKE_SNI": "auth.vercel.com",
   "XRAY_URL": "vless://<uuid>@server.example:443?...",
+  "XRAY_PROFILES": [
+    {
+      "id": "primaryprofile",
+      "url": "vless://<uuid>@server.example:443?...#Primary",
+      "tag": "Primary",
+      "protocol": "vless",
+      "address": "server.example",
+      "port": 443,
+      "transport": "ws",
+      "security": "tls"
+    }
+  ],
+  "XRAY_ACTIVE_PROFILE_ID": "primaryprofile",
   "XRAY_BINARY_PATH": "xray\\xray.exe",
   "XRAY_SOCKS_PORT": 10908,
   "XRAY_HTTP_PORT": 10909,
@@ -90,9 +105,11 @@ The runtime behavior is controlled by `config.json`:
 - `LISTEN_HOST`: local bind address for the relay.
 - `LISTEN_PORT`: local TCP port that clients connect to.
 - `CONNECT_IP`: fixed remote IPv4 address the program will connect to.
-- `XRAY_URL`: the original Xray share link. `vless://`, `trojan://`, and other supported Xray share URLs are accepted. Its remote port is also used as the relay's upstream TCP port when this field is set, and it must be `443` for the relay flow to work.
+- `XRAY_URL`: mirrored copy of the active Xray share link. The headless runtime still reads this field directly, so the GUI keeps it synchronized with `XRAY_ACTIVE_PROFILE_ID` for backward compatibility.
+- `XRAY_PROFILES`: persisted list of direct `vless://` or `trojan://` share links shown in the GUI table. Each row stores the raw URL plus derived metadata such as `tag`, `protocol`, `address`, `port`, `transport`, and `security`.
+- `XRAY_ACTIVE_PROFILE_ID`: id of the active row in the GUI. `Start Relay` always uses this row only.
 - `FAKE_SNI`: the decoy SNI inserted into the synthetic ClientHello.
-- `CONNECT_PORT`: optional legacy fallback port used only when `XRAY_URL` is empty. If omitted, it defaults to `443`.
+- `CONNECT_PORT`: optional legacy fallback port used only when no active profile is available and `XRAY_URL` is empty. If omitted, it defaults to `443`.
 - `XRAY_BINARY_PATH`: path to the bundled Xray executable.
 - `XRAY_SOCKS_PORT`: local SOCKS5 listen port for the Xray child process. The host is always `127.0.0.1`.
 - `XRAY_HTTP_PORT`: local HTTP proxy listen port for the Xray child process. The host is always `127.0.0.1`.
@@ -105,12 +122,13 @@ The control panel loads these fields from `config.json` when it opens:
 
 - `CONNECT_IP`
 - `FAKE_SNI`
-- `XRAY_URL`
+- `XRAY_PROFILES`
+- `XRAY_ACTIVE_PROFILE_ID`
 - `XRAY_SOCKS_PORT`
 - `XRAY_HTTP_PORT`
 - `XRAY_LOG_LEVEL`
 
-Starting the relay or running a delay test uses the current form values for that session only. The GUI does not rewrite `config.json`; if you want a persistent change, edit the file directly.
+Profile add, edit, remove, and set-active actions are persisted to `config.json` immediately. Starting the relay or running a delay test still uses the current form values for that session only, so changes to `CONNECT_IP`, `FAKE_SNI`, `XRAY_SOCKS_PORT`, `XRAY_HTTP_PORT`, and `XRAY_LOG_LEVEL` are not persisted unless you edit `config.json` directly. Delay and status cells in the profile table are session-only and are cleared when the app restarts.
 
 ## Requirements
 
@@ -137,6 +155,13 @@ python main.py
 
 That command now opens the desktop control panel. From there you can start or stop the relay, run a delay probe, and inspect logs without opening a separate console window.
 
+The GUI workflow is:
+
+- Use `Add`, `Edit`, `Remove`, and `Set Active` to manage direct share links in the `XRAY Profiles` table.
+- `Start Relay` uses only the active row.
+- `Test Delay` runs sequential probes for the selected row or rows without changing the active relay target.
+- Delay results are written into the `Delay` and `Status` columns for the current session.
+
 If you want the previous console-only behavior, run:
 
 ```powershell
@@ -149,18 +174,18 @@ If you need to run the relay against an alternate config file, you can override 
 python main.py --headless --config path\to\config.json
 ```
 
-If `XRAY_URL` is configured, the app starts bundled Xray and exposes these local proxies on fixed loopback addresses:
+If an active Xray profile is configured, the app starts bundled Xray and exposes these local proxies on fixed loopback addresses:
 
 - SOCKS5: `127.0.0.1:XRAY_SOCKS_PORT`
 - HTTP: `127.0.0.1:XRAY_HTTP_PORT`
 
 Applications can use those proxy ports directly without running V2rayN.
 
-The `Test Delay` button uses an isolated temporary runtime instead of reusing the saved relay ports. It chooses fresh local ports that do not collide with `LISTEN_PORT`, `CONNECT_PORT`, `XRAY_SOCKS_PORT`, or `XRAY_HTTP_PORT`, launches a temporary headless relay plus bundled Xray, opens a CONNECT tunnel through the temporary HTTP proxy, and measures a single HTTPS GET to `https://www.google.com/generate_204` through that tunnel. Stop the main relay before running the delay probe.
+The `Test Delay` button uses an isolated temporary runtime instead of reusing the saved relay ports. For each selected row, it chooses fresh local ports that do not collide with `LISTEN_PORT`, `CONNECT_PORT`, `XRAY_SOCKS_PORT`, or `XRAY_HTTP_PORT`, launches a temporary headless relay plus bundled Xray, opens a CONNECT tunnel through the temporary HTTP proxy, and measures a single HTTPS GET to `https://www.google.com/generate_204` through that tunnel. Selected rows are tested sequentially, the active relay row is left unchanged, and the `Delay` and `Status` columns are updated for the current session only. Stop the main relay before running the delay probe.
 
 The relay still listens on `LISTEN_HOST:LISTEN_PORT`, and Xray reaches it through `XRAY_RELAY_HOST:LISTEN_PORT`.
 
-When `XRAY_URL` contains the original remote host and port, the app rewrites Xray to dial `XRAY_RELAY_HOST:LISTEN_PORT` instead. This means you no longer need to manually edit the share link to `127.0.0.1:40443`.
+When the active profile contains the original remote host and port, the app rewrites Xray to dial `XRAY_RELAY_HOST:LISTEN_PORT` instead. This means you no longer need to manually edit the share link to `127.0.0.1:40443`.
 
 Important operational notes:
 
@@ -177,9 +202,9 @@ pip install -r requirements-build.txt
 python build.py
 ```
 
-The output bundle is written to `dist\\SNI-Spoofing\\`.
+The output bundle is written to `dist\\SNI-Spoofing-GUI\\`.
 
-The bundled executable opens the control panel by default. Use `SNI-Spoofing.exe --headless` if you need the relay without the GUI.
+The bundled executable opens the control panel by default. Use `SNI-Spoofing-GUI.exe --headless` if you need the relay without the GUI.
 
 ## Why This Can Work
 
