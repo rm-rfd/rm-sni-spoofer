@@ -33,6 +33,7 @@ from utils.delay_test import DelayTestResult, measure_delay_with_temporary_runti
 DONATION_NETWORK_LABEL = "USDT (BEP20):"
 DONATION_ADDRESS = "0x6411d42175578CFafadfB6b536A4C97F0f6883Aa"
 APP_NAME = "RM SNI Spoofer"
+APP_VERSION = "0.0.5"
 APP_ROOT = Path(get_app_dir())
 APP_ICON_ICO_PATH = APP_ROOT / "logo.ico"
 APP_ICON_PNG_PATH = APP_ROOT / "logo.png"
@@ -841,7 +842,8 @@ class SupportUsDialog(simpledialog.Dialog):
 class ControlPanel(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title(APP_NAME)
+        self.title(f"{APP_NAME} v{APP_VERSION}")
+        
         self.geometry("1240x840")
         self.minsize(1080, 720)
         self._window_icon: tk.PhotoImage | None = None
@@ -852,6 +854,10 @@ class ControlPanel(tk.Tk):
         self._relay_chip_dot: tk.Label | None = None
         self._relay_chip_label: tk.Label | None = None
         self._status_detail_label: ttk.Label | None = None
+        self._profile_scroll_y: ttk.Scrollbar | None = None
+        self._profile_scroll_x: ttk.Scrollbar | None = None
+        self._log_scroll_y: ttk.Scrollbar | None = None
+        self._log_scroll_x: ttk.Scrollbar | None = None
 
         self.process: subprocess.Popen[str] | None = None
         self.delay_test_in_progress = False
@@ -1284,12 +1290,26 @@ class ControlPanel(tk.Tk):
             background=THEME["card"],
             fieldbackground=THEME["card"],
             foreground=THEME["text"],
-            bordercolor=THEME["input_border"],
-            lightcolor=THEME["input_border"],
-            darkcolor=THEME["input_border"],
+            borderwidth=0,
+            padding=0,
+            bordercolor=THEME["card"],
+            lightcolor=THEME["card"],
+            darkcolor=THEME["card"],
             rowheight=38,
             relief="flat",
             font=(self._font_families["body"], 10),
+        )
+        style.layout(
+            "Profiles.Treeview",
+            [
+                (
+                    "Treeview.field",
+                    {
+                        "sticky": "nswe",
+                        "children": [("Treeview.treearea", {"sticky": "nswe"})],
+                    },
+                )
+            ],
         )
         style.map(
             "Profiles.Treeview",
@@ -1300,9 +1320,33 @@ class ControlPanel(tk.Tk):
             "Profiles.Treeview.Heading",
             background=THEME["card"],
             foreground=THEME["muted_alt"],
+            borderwidth=0,
             relief="flat",
             padding=(8, 6),
             font=(self._font_families["label"], 8, "bold"),
+        )
+        style.layout(
+            "Profiles.Treeview.Heading",
+            [
+                (
+                    "Treeheading.cell",
+                    {
+                        "sticky": "nswe",
+                        "children": [
+                            (
+                                "Treeheading.padding",
+                                {
+                                    "sticky": "nswe",
+                                    "children": [
+                                        ("Treeheading.image", {"side": "right", "sticky": ""}),
+                                        ("Treeheading.text", {"sticky": "we"}),
+                                    ],
+                                },
+                            )
+                        ],
+                    },
+                )
+            ],
         )
         style.map(
             "Profiles.Treeview.Heading",
@@ -1415,14 +1459,14 @@ class ControlPanel(tk.Tk):
         ttk.Label(brand, text=APP_NAME, style="SidebarTitle.TLabel").grid(row=0, column=0, sticky="w")
 
 
-        tk.Label(
-            brand,
-            text=self._runtime_label(),
-            bg=THEME["low"],
-            fg=THEME["muted_alt"],
-            font=(self._font_families["label"], 8),
-            anchor="w",
-        ).grid(row=1, column=0, sticky="w", pady=(4, 0))
+        # tk.Label(
+        #     brand,
+        #     text=f"v{APP_VERSION}",
+        #     bg=THEME["low"],
+        #     fg=THEME["muted_alt"],
+        #     font=(self._font_families["label"], 8),
+        #     anchor="w",
+        # ).grid(row=1, column=0, sticky="w", pady=(4, 0))
 
         nav = tk.Frame(parent, bg=THEME["low"], padx=10, pady=8)
         nav.grid(row=1, column=0, sticky="ew")
@@ -1646,8 +1690,20 @@ class ControlPanel(tk.Tk):
         )
         self.profile_set_active_button.grid(row=0, column=3)
 
-        table_frame = ttk.Frame(section, style="Section.TFrame")
-        table_frame.grid(row=1, column=0, sticky="nsew")
+        table_shell = tk.Frame(
+            section,
+            bg=THEME["card"],
+            highlightbackground=THEME["border"],
+            highlightcolor=THEME["border"],
+            highlightthickness=2,
+            bd=0,
+        )
+        table_shell.grid(row=1, column=0, sticky="nsew")
+        table_shell.columnconfigure(0, weight=1)
+        table_shell.rowconfigure(0, weight=1)
+
+        table_frame = ttk.Frame(table_shell, style="Section.TFrame")
+        table_frame.grid(row=0, column=0, sticky="nsew")
         table_frame.columnconfigure(0, weight=1)
         table_frame.rowconfigure(0, weight=1)
 
@@ -1700,24 +1756,37 @@ class ControlPanel(tk.Tk):
         self.profile_tree.tag_configure("error_profile", foreground=THEME["error"])
         self.profile_tree.bind("<<TreeviewSelect>>", self._on_profile_selection_changed, add="+")
         self.profile_tree.bind("<Double-1>", self._on_profile_double_click, add="+")
+        self.profile_tree.bind("<Configure>", lambda _event: self.after_idle(self._refresh_profile_scrollbars), add="+")
 
-        profile_scroll_y = ttk.Scrollbar(
+        self._profile_scroll_y = profile_scroll_y = ttk.Scrollbar(
             table_frame,
             orient="vertical",
             command=self.profile_tree.yview,
             style="Shell.Vertical.TScrollbar",
         )
         profile_scroll_y.grid(row=0, column=1, sticky="ns")
-        self.profile_tree.configure(yscrollcommand=profile_scroll_y.set)
+        self.profile_tree.configure(
+            yscrollcommand=lambda first, last, scrollbar=profile_scroll_y: self._update_scrollbar_visibility(
+                scrollbar,
+                first,
+                last,
+            ),
+        )
 
-        profile_scroll_x = ttk.Scrollbar(
+        self._profile_scroll_x = profile_scroll_x = ttk.Scrollbar(
             table_frame,
             orient="horizontal",
             command=self.profile_tree.xview,
             style="Shell.Horizontal.TScrollbar",
         )
         profile_scroll_x.grid(row=1, column=0, sticky="ew")
-        self.profile_tree.configure(xscrollcommand=profile_scroll_x.set)
+        self.profile_tree.configure(
+            xscrollcommand=lambda first, last, scrollbar=profile_scroll_x: self._update_scrollbar_visibility(
+                scrollbar,
+                first,
+                last,
+            ),
+        )
 
         ttk.Label(section, textvariable=self.profile_status_var, style="StatusDetail.TLabel").grid(
             row=2,
@@ -1873,24 +1942,37 @@ class ControlPanel(tk.Tk):
         self.log_text.tag_configure("log_exit", foreground=THEME["error"])
         self.log_text.tag_configure("log_delay", foreground=THEME["warning"])
         self.log_text.tag_configure("log_meta", foreground=THEME["muted_alt"])
+        self.log_text.bind("<Configure>", lambda _event: self.after_idle(self._refresh_log_scrollbars), add="+")
 
-        log_scroll_y = ttk.Scrollbar(
+        self._log_scroll_y = log_scroll_y = ttk.Scrollbar(
             section,
             orient="vertical",
             command=self.log_text.yview,
             style="Shell.Vertical.TScrollbar",
         )
         log_scroll_y.grid(row=1, column=1, sticky="ns")
-        self.log_text.configure(yscrollcommand=log_scroll_y.set)
+        self.log_text.configure(
+            yscrollcommand=lambda first, last, scrollbar=log_scroll_y: self._update_scrollbar_visibility(
+                scrollbar,
+                first,
+                last,
+            ),
+        )
 
-        log_scroll_x = ttk.Scrollbar(
+        self._log_scroll_x = log_scroll_x = ttk.Scrollbar(
             section,
             orient="horizontal",
             command=self.log_text.xview,
             style="Shell.Horizontal.TScrollbar",
         )
         log_scroll_x.grid(row=2, column=0, sticky="ew")
-        self.log_text.configure(xscrollcommand=log_scroll_x.set)
+        self.log_text.configure(
+            xscrollcommand=lambda first, last, scrollbar=log_scroll_x: self._update_scrollbar_visibility(
+                scrollbar,
+                first,
+                last,
+            ),
+        )
         shell.refresh()
 
     def _install_context_menus(self) -> None:
@@ -2524,6 +2606,53 @@ class ControlPanel(tk.Tk):
     def _is_process_running(self) -> bool:
         return self.process is not None and self.process.poll() is None
 
+    def _update_scrollbar_visibility(
+        self,
+        scrollbar: ttk.Scrollbar | None,
+        first: float | str,
+        last: float | str,
+    ) -> None:
+        if scrollbar is None:
+            return
+
+        try:
+            first_value = float(first)
+            last_value = float(last)
+        except (TypeError, ValueError, tk.TclError):
+            return
+
+        should_show = (last_value - first_value) < 0.999999
+        is_managed = bool(scrollbar.grid_info())
+        if should_show:
+            if not is_managed:
+                scrollbar.grid()
+        elif is_managed:
+            scrollbar.grid_remove()
+
+        scrollbar.set(first_value, last_value)
+
+    def _refresh_profile_scrollbars(self) -> None:
+        profile_tree = getattr(self, "profile_tree", None)
+        if profile_tree is None:
+            return
+
+        try:
+            self._update_scrollbar_visibility(self._profile_scroll_y, *profile_tree.yview())
+            self._update_scrollbar_visibility(self._profile_scroll_x, *profile_tree.xview())
+        except tk.TclError:
+            return
+
+    def _refresh_log_scrollbars(self) -> None:
+        log_text = getattr(self, "log_text", None)
+        if log_text is None:
+            return
+
+        try:
+            self._update_scrollbar_visibility(self._log_scroll_y, *log_text.yview())
+            self._update_scrollbar_visibility(self._log_scroll_x, *log_text.xview())
+        except tk.TclError:
+            return
+
     def _append_log(self, message: str, tag: str | None = None) -> None:
         self.log_text.configure(state="normal")
         if tag is not None:
@@ -2543,11 +2672,13 @@ class ControlPanel(tk.Tk):
                     self.log_text.insert("end", f"{match.group(2)}\n")
         self.log_text.see("end")
         self.log_text.configure(state="disabled")
+        self.after_idle(self._refresh_log_scrollbars)
 
     def clear_logs(self) -> None:
         self.log_text.configure(state="normal")
         self.log_text.delete("1.0", "end")
         self.log_text.configure(state="disabled")
+        self.after_idle(self._refresh_log_scrollbars)
 
     def load_form_from_disk(self, *, show_log: bool = False) -> None:
         try:
@@ -2562,6 +2693,7 @@ class ControlPanel(tk.Tk):
         self.http_port_var.set(str(config.get("XRAY_HTTP_PORT", "")))
         self.log_level_var.set(str(config.get("XRAY_LOG_LEVEL", "warning")).strip().lower())
         self._load_profiles_from_config(config)
+        self.after_idle(self._refresh_profile_scrollbars)
         if show_log:
             self._append_log("[loaded] config loaded from disk")
 

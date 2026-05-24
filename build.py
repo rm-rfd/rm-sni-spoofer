@@ -13,7 +13,7 @@ APP_NAME = "RM SNI Spoofer"
 PROJECT_ROOT = Path(__file__).resolve().parent
 ENTRYPOINT = PROJECT_ROOT / "main.py"
 RUNTIME_FILES = ["config.json"]
-OPTIONAL_RUNTIME_FILES = ["logo.ico", "logo.png"]
+OPTIONAL_RUNTIME_FILES = ["logo.ico",]
 RUNTIME_DIRECTORIES = ["xray", "fonts", "icons"]
 APP_ICON_PATH = PROJECT_ROOT / "logo.ico"
 
