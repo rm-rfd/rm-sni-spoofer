@@ -28,6 +28,32 @@ def get_app_dir() -> str:
     return str(Path(__file__).resolve().parent)
 
 
+def get_asset_root() -> Path:
+    app_dir = Path(get_app_dir())
+    if getattr(sys, "frozen", False):
+        return app_dir
+
+    src_assets_dir = app_dir / "src" / "assets"
+    if src_assets_dir.is_dir():
+        return src_assets_dir
+    return app_dir
+
+
+def get_asset_path(*parts: str) -> Path:
+    asset_root = get_asset_root()
+    if not parts:
+        return asset_root
+
+    candidate = asset_root.joinpath(*parts)
+    if candidate.exists():
+        return candidate
+
+    if getattr(sys, "frozen", False):
+        return candidate
+
+    return Path(get_app_dir()).joinpath(*parts)
+
+
 def get_config_path(config_path: str | None = None) -> str:
     if config_path:
         return os.path.abspath(config_path)

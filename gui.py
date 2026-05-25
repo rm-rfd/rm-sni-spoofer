@@ -19,6 +19,7 @@ from app_config import (
     XRAY_LOG_LEVELS,
     build_xray_profile_record,
     get_app_dir,
+    get_asset_path,
     get_active_xray_profile,
     get_config_port,
     get_xray_profiles,
@@ -35,10 +36,10 @@ DONATION_ADDRESS = "0x6411d42175578CFafadfB6b536A4C97F0f6883Aa"
 APP_NAME = "RM SNI Spoofer"
 APP_VERSION = "0.0.5"
 APP_ROOT = Path(get_app_dir())
-APP_ICON_ICO_PATH = APP_ROOT / "logo.ico"
-APP_ICON_PNG_PATH = APP_ROOT / "logo.png"
-APP_FONTS_DIR = APP_ROOT / "fonts"
-APP_ICONS_DIR = APP_ROOT / "icons"
+APP_ICON_ICO_PATH = get_asset_path("logo.ico")
+APP_ICON_PNG_PATH = get_asset_path("logo.png")
+APP_FONTS_DIR = get_asset_path("fonts")
+APP_ICONS_DIR = get_asset_path("icons")
 WINDOWS_PRIVATE_FONT_FLAG = 0x10
 
 THEME = {
