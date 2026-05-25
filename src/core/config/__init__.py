@@ -1,1 +1,2 @@
-"""Configuration package scaffold."""
+"""Temporary configuration package shim."""
+

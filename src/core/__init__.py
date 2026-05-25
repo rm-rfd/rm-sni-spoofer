@@ -1,1 +1,2 @@
-"""Core runtime packages for the src-based layout."""
+"""Temporary core package shim during the src migration."""
+

@@ -1,1 +1,2 @@
-"""Xray integration package scaffold."""
+"""Temporary Xray integration package shim."""
+

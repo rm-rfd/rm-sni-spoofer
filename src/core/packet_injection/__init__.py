@@ -1,1 +1,2 @@
-"""Packet injection package scaffold."""
+"""Temporary packet injection package shim."""
+

@@ -1,1 +1,2 @@
-"""Runtime package scaffold."""
+"""Temporary runtime package shim."""
+
