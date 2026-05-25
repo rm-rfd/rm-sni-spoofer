@@ -1,1 +1,0 @@
-"""Shared utility package scaffold."""

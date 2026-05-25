@@ -1,2 +1,0 @@
-"""Temporary configuration package shim."""
-

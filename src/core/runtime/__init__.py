@@ -1,2 +1,0 @@
-"""Temporary runtime package shim."""
-
