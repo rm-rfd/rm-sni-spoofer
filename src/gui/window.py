@@ -76,6 +76,8 @@ class ControlPanel(tk.Tk):
         self.profile_delay_values: dict[str, str] = {}
         self.profile_delay_statuses: dict[str, str] = {}
         self.profile_delay_states: dict[str, str] = {}
+        self._profile_sort_column: str | None = None
+        self._profile_sort_reverse: bool = False
 
         self.connect_ip_var = tk.StringVar()
         self.fake_sni_var = tk.StringVar()
@@ -600,15 +602,15 @@ class ControlPanel(tk.Tk):
             height=11,
             style="Profiles.Treeview",
         )
-        self.profile_tree.heading("active", text="Active")
-        self.profile_tree.heading("remark", text="Remark")
-        self.profile_tree.heading("protocol", text="Type")
-        self.profile_tree.heading("address", text="Address")
-        self.profile_tree.heading("port", text="Port")
-        self.profile_tree.heading("transport", text="Transport")
-        self.profile_tree.heading("security", text="Security")
-        self.profile_tree.heading("delay", text="Delay")
-        self.profile_tree.heading("status", text="Status")
+        self.profile_tree.heading("active", text="Active", command=lambda: self._sort_profiles("active"))
+        self.profile_tree.heading("remark", text="Remark", command=lambda: self._sort_profiles("remark"))
+        self.profile_tree.heading("protocol", text="Type", command=lambda: self._sort_profiles("protocol"))
+        self.profile_tree.heading("address", text="Address", command=lambda: self._sort_profiles("address"))
+        self.profile_tree.heading("port", text="Port", command=lambda: self._sort_profiles("port"))
+        self.profile_tree.heading("transport", text="Transport", command=lambda: self._sort_profiles("transport"))
+        self.profile_tree.heading("security", text="Security", command=lambda: self._sort_profiles("security"))
+        self.profile_tree.heading("delay", text="Delay", command=lambda: self._sort_profiles("delay"))
+        self.profile_tree.heading("status", text="Status", command=lambda: self._sort_profiles("status"))
         self.profile_tree.column("active", width=74, anchor="center", stretch=False)
         self.profile_tree.column("remark", width=180, stretch=True)
         self.profile_tree.column("protocol", width=84, anchor="center", stretch=False)
@@ -918,6 +920,9 @@ class ControlPanel(tk.Tk):
 
     def _prune_profile_delay_state(self) -> None:
         profile_helpers.prune_profile_delay_state(self)
+
+    def _sort_profiles(self, column: str) -> None:
+        profile_helpers.sort_profiles(self, column)
 
     def _get_profiles_in_display_order(self) -> list[dict[str, object]]:
         return profile_helpers.get_profiles_in_display_order(self)

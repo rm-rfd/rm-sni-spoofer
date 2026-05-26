@@ -19,6 +19,7 @@ __all__ = [
     "profile_row_values",
     "profile_row_tags",
     "refresh_profile_row",
+    "sort_profiles",
     "set_profile_delay_state",
     "prune_profile_delay_state",
     "get_profiles_in_display_order",
@@ -38,6 +39,19 @@ __all__ = [
     "remove_selected_profiles",
     "set_selected_profile_active",
 ]
+
+
+SORTABLE_COLUMNS: dict[str, int] = {
+    "active": 0,
+    "remark": 1,
+    "protocol": 2,
+    "address": 3,
+    "port": 4,
+    "transport": 5,
+    "security": 6,
+    "delay": 7,
+    "status": 8,
+}
 
 
 def copy_selected_profiles(panel: Any) -> None:
@@ -94,6 +108,85 @@ def refresh_profile_row(panel: Any, profile_id: str) -> None:
         values=profile_row_values(panel, profile),
         tags=profile_row_tags(panel, profile_id),
     )
+
+
+def _sort_key(panel: Any, profile_id: str, column_index: int):
+    """Return a sort-safe key for a profile by column index."""
+    profile = panel.xray_profiles.get(profile_id)
+    if profile is None:
+        return ""
+
+    if column_index == 0:
+        # Active column: sort active above inactive
+        return ("0" if profile_id == panel.active_profile_id else "1")
+    if column_index == 4:
+        # Port column: numeric sort
+        try:
+            return (int(profile.get("port", 0)),)
+        except (TypeError, ValueError):
+            return (99999,)
+    if column_index == 7:
+        # Delay column: sort by numeric value (extract ms)
+        raw = panel.profile_delay_values.get(profile_id, "")
+        if raw.endswith(" ms"):
+            try:
+                return (float(raw[:-3].strip()),)
+            except (TypeError, ValueError):
+                return (float("inf"),)
+        return (float("inf"),)
+    if column_index == 8:
+        # Status column: sort consistently
+        return panel.profile_delay_statuses.get(profile_id, "")
+
+    values = profile_row_values(panel, profile)
+    if column_index < len(values):
+        return str(values[column_index]).lower()
+    return ""
+
+
+def sort_profiles(panel: Any, column: str) -> None:
+    """Sort the profile tree by *column*. Toggle direction on repeated clicks."""
+    column_index = SORTABLE_COLUMNS.get(column)
+    if column_index is None:
+        return
+
+    reverse = False
+    if getattr(panel, "_profile_sort_column", None) == column:
+        reverse = not panel._profile_sort_reverse
+    panel._profile_sort_column = column
+    panel._profile_sort_reverse = reverse
+
+    children = panel.profile_tree.get_children("")
+    if not children:
+        return
+
+    items = [
+        (profile_id, _sort_key(panel, profile_id, column_index))
+        for profile_id in children
+    ]
+    items.sort(key=lambda pair: pair[1], reverse=reverse)
+
+    for index, (profile_id, _) in enumerate(items):
+        panel.profile_tree.move(profile_id, "", index)
+
+    # Update heading indicators
+    marker = " ▲" if not reverse else " ▼"
+    column_labels = {
+        "active": "Active",
+        "remark": "Remark",
+        "protocol": "Type",
+        "address": "Address",
+        "port": "Port",
+        "transport": "Transport",
+        "security": "Security",
+        "delay": "Delay",
+        "status": "Status",
+    }
+    for col in column_labels:
+        label = column_labels[col]
+        if col == column:
+            label += marker
+        panel.profile_tree.heading(col, text=label)
 
 
 def set_profile_delay_state(
@@ -187,6 +280,11 @@ def load_profiles_from_config(
         panel.profile_tree.see(resolved_selection[0])
     else:
         panel.profile_tree.selection_remove(panel.profile_tree.selection())
+
+    # Re-apply the current sort column if one was active
+    sort_column = getattr(panel, "_profile_sort_column", None)
+    if sort_column is not None and sort_column in SORTABLE_COLUMNS:
+        sort_profiles(panel, sort_column)
 
     update_profile_selection_state(panel)
 
