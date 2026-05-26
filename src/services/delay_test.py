@@ -263,8 +263,6 @@ def measure_delay_with_temporary_runtime(
         get_config_port(config, "LISTEN_PORT", 40443),
         get_config_port(config, "CONNECT_PORT", 443),
         get_local_proxy_port(config),
-        get_config_port(config, "XRAY_SOCKS_PORT", 10808),
-        get_config_port(config, "XRAY_HTTP_PORT", 10809),
     }
     relay_port = _allocate_free_tcp_port(listen_host, excluded_ports)
     proxy_port = _allocate_free_tcp_port("127.0.0.1", excluded_ports)

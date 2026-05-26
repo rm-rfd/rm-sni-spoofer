@@ -367,20 +367,7 @@ def get_local_proxy_port(
     config: dict[str, Any],
     default: int = DEFAULT_LOCAL_PROXY_PORT,
 ) -> int:
-    raw_local_proxy_port = config.get("LOCAL_PROXY_PORT")
-    if raw_local_proxy_port is not None:
-        if not isinstance(raw_local_proxy_port, str) or raw_local_proxy_port.strip():
-            return get_config_port(config, "LOCAL_PROXY_PORT", default)
-
-    for fallback_name in ("XRAY_HTTP_PORT", "XRAY_SOCKS_PORT"):
-        raw_fallback_value = config.get(fallback_name)
-        if raw_fallback_value is None:
-            continue
-        if isinstance(raw_fallback_value, str) and not raw_fallback_value.strip():
-            continue
-        return get_config_port(config, fallback_name, default)
-
-    return default
+    return get_config_port(config, "LOCAL_PROXY_PORT", default)
 
 
 def get_tunnel_dns_servers(

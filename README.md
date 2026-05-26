@@ -59,8 +59,6 @@ The GUI stores direct `vless://` and `trojan://` share links in an `XRAY Profile
 
 Runtime settings live in `config.json`. The most important fields are `LISTEN_HOST`, `LISTEN_PORT`, `CONNECT_IP`, `CONNECT_PORT`, `FORCE_CONNECT_PORT`, `FAKE_SNI`, `CONNECTION_MODE`, `LOCAL_PROXY_PORT`, `TUNNEL_DNS_SERVERS`, `XRAY_PROFILES`, `XRAY_ACTIVE_PROFILE_ID`, `XRAY_BINARY_PATH`, `XRAY_LOG_LEVEL`, and `XRAY_RELAY_HOST`.
 
-Older `XRAY_SOCKS_PORT` and `XRAY_HTTP_PORT` fields may still exist in `config.json` for compatibility with older configs, but the current runtime uses `LOCAL_PROXY_PORT` for the active mixed inbound.
-
 `TUNNEL_DNS_SERVERS` is a list of IPv4 DNS servers that the app applies to the Xray tunnel adapter while `tunnel whole system` is active. The current default is Cloudflare IPv4 (`1.1.1.1`, `1.0.0.1`).
 
 `FAKE_SNI` only changes the spoofed value in the injected packet. It does not affect DNS resolution or choose the upstream IP.
