@@ -16,6 +16,7 @@ __all__ = [
     "handle_delay_started",
     "handle_delay_result",
     "handle_delay_error",
+    "handle_delay_cancelled",
     "handle_delay_finished",
     "drain_log_queue",
 ]
@@ -141,9 +142,31 @@ def handle_delay_error(
     append_log(panel, f"[delay] {profile_label}: failed: {message}", "delay_error")
 
 
-def handle_delay_finished(panel: Any, total_jobs: int) -> None:
+def handle_delay_cancelled(
+    panel: Any,
+    profile_id: str,
+    profile_label: str,
+    remaining: int,
+    total: int,
+) -> None:
+    panel._set_profile_delay_state(
+        profile_id,
+        delay_text="",
+        status_text="Cancelled",
+        status_state="queued",
+    )
+    append_log(
+        panel,
+        f"[delay] {profile_label}: skipped — {remaining} remaining job(s) cancelled",
+        "delay_error",
+    )
+
+
+def handle_delay_finished(panel: Any, total_jobs: int, cancelled: bool = False) -> None:
     panel.delay_test_in_progress = False
-    if panel._is_process_running() and panel.process is not None:
+    if cancelled:
+        panel.status_var.set("Delay Tests Cancelled")
+    elif panel._is_process_running() and panel.process is not None:
         panel.status_var.set(f"Running (PID {panel.process.pid})")
     elif total_jobs > 0:
         panel.status_var.set(f"Delay Tests Complete ({total_jobs})")
@@ -181,9 +204,16 @@ def drain_log_queue(panel: Any) -> None:
         elif kind == "delay-error":
             _, profile_id, profile_label, message, _index, _total = item
             handle_delay_error(panel, str(profile_id), str(profile_label), str(message))
+        elif kind == "delay-cancelled":
+            _, profile_id, profile_label, remaining, total = item
+            handle_delay_cancelled(panel, str(profile_id), str(profile_label), int(remaining), int(total))
         elif kind == "delay-finished":
-            _, total_jobs = item
-            handle_delay_finished(panel, int(total_jobs))
+            if len(item) == 3:
+                _, total_jobs, cancelled = item
+            else:
+                _, total_jobs = item
+                cancelled = False
+            handle_delay_finished(panel, int(total_jobs), bool(cancelled))
 
     if panel.winfo_exists():
         panel.after(100, panel._drain_log_queue)

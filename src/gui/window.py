@@ -5,6 +5,7 @@ from pathlib import Path
 import queue
 import subprocess
 import sys
+import threading
 import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import messagebox, ttk
@@ -69,6 +70,7 @@ class ControlPanel(tk.Tk):
 
         self.process: subprocess.Popen[str] | None = None
         self.delay_test_in_progress = False
+        self.delay_test_stop_event = threading.Event()
         self.log_queue: queue.Queue[tuple] = queue.Queue()
         self.runtime_config_path: Path | None = None
         self.xray_profiles: dict[str, dict[str, object]] = {}
@@ -1025,10 +1027,16 @@ class ControlPanel(tk.Tk):
             self.stop_button.state(["disabled"])
 
         if is_busy:
-            self.test_delay_button.state(["disabled"])
+            self.test_delay_button.set_text("Stop Tests")
+            self.test_delay_button.set_command(self.stop_delay_tests)
+            self.test_delay_button.state(["!disabled"])
         elif is_running or not has_delay_selection:
+            self.test_delay_button.set_text("Test Delay")
+            self.test_delay_button.set_command(self.test_delay)
             self.test_delay_button.state(["disabled"])
         else:
+            self.test_delay_button.set_text("Test Delay")
+            self.test_delay_button.set_command(self.test_delay)
             self.test_delay_button.state(["!disabled"])
 
         self._sync_profile_action_state()
@@ -1164,7 +1172,10 @@ class ControlPanel(tk.Tk):
         relay_helpers.start_relay(self)
 
     def test_delay(self) -> None:
-        relay_helpers.test_delay(self)
+        relay_helpers.test_delay(self, self.delay_test_stop_event)
+
+    def stop_delay_tests(self) -> None:
+        relay_helpers.stop_delay_tests(self)
 
     def _run_delay_tests(
         self,
@@ -1227,6 +1238,16 @@ class ControlPanel(tk.Tk):
         log_helpers.drain_log_queue(self)
 
     def _on_close(self) -> None:
+        if self.delay_test_in_progress:
+            should_close = messagebox.askyesno(
+                "Delay Tests Running",
+                "Delay tests are still running. Cancel them and close the control panel?",
+                parent=self,
+            )
+            if not should_close:
+                return
+            self.delay_test_stop_event.set()
+
         if self._is_process_running() and self.process is not None:
             should_close = messagebox.askyesno(
                 "Stop Relay",

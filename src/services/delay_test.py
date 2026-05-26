@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import threading
 import time
+from threading import Event
 
 from src.core.config.app_config import (
     get_active_xray_share_url,
@@ -30,6 +31,11 @@ DELAY_TEST_TARGET_PORT = 443
 
 
 class DelayTestError(RuntimeError):
+    pass
+
+
+class DelayTestAborted(DelayTestError):
+    """Raised when the user cancels a running delay test."""
     pass
 
 
@@ -121,12 +127,16 @@ def _wait_for_proxy_ready(
     proxy_host: str,
     proxy_port: int,
     timeout_seconds: float,
+    stop_event: Event | None = None,
 ) -> None:
     ready_token = f"Mixed proxy: {proxy_host}:{proxy_port}"
     observed_lines: list[str] = []
     deadline = time.monotonic() + timeout_seconds
 
     while time.monotonic() < deadline:
+        if stop_event is not None and stop_event.is_set():
+            raise DelayTestAborted("Delay test aborted by user before the proxy was ready")
+
         if process.poll() is not None:
             observed_lines.extend(_drain_output_queue(output_queue))
             details = _tail_output(observed_lines)
@@ -164,6 +174,7 @@ def _measure_https_request_delay(
     request_host: str,
     request_path: str,
     timeout_seconds: float,
+    stop_event: Event | None = None,
 ) -> float:
     connection = http.client.HTTPSConnection(
         proxy_host,
@@ -176,6 +187,11 @@ def _measure_https_request_delay(
         target_port,
         headers={"Host": f"{target_host}:{target_port}"},
     )
+
+    if stop_event is not None and stop_event.is_set():
+        connection.close()
+        raise DelayTestAborted("Delay test aborted by user before the HTTPS request")
+
     start_time = time.perf_counter()
 
     try:
@@ -235,6 +251,7 @@ def measure_delay_with_temporary_runtime(
     target_host: str = DELAY_TEST_TARGET_HOST,
     target_port: int = DELAY_TEST_TARGET_PORT,
     log_callback: LogCallback | None = None,
+    stop_event: Event | None = None,
 ) -> DelayTestResult:
     share_url = get_active_xray_share_url(config)
     if not share_url:
@@ -258,6 +275,10 @@ def measure_delay_with_temporary_runtime(
 
     temp_config_path = _write_temp_config(temp_config)
     process: subprocess.Popen[str] | None = None
+
+    if stop_event is not None and stop_event.is_set():
+        Path(temp_config_path).unlink(missing_ok=True)
+        raise DelayTestAborted("Delay test aborted by user before the temporary relay was launched")
 
     _emit_log(log_callback, f"[delay] Launching temporary relay on {listen_host}:{relay_port}")
     _emit_log(log_callback, f"[delay] Temporary Xray mixed proxy: 127.0.0.1:{proxy_port}")
@@ -285,7 +306,7 @@ def measure_delay_with_temporary_runtime(
             daemon=True,
         ).start()
 
-        _wait_for_proxy_ready(process, output_queue, "127.0.0.1", proxy_port, startup_timeout)
+        _wait_for_proxy_ready(process, output_queue, "127.0.0.1", proxy_port, startup_timeout, stop_event)
         latency_ms = _measure_https_request_delay(
             "127.0.0.1",
             proxy_port,
@@ -294,6 +315,7 @@ def measure_delay_with_temporary_runtime(
             DELAY_TEST_TARGET_HTTP_HOST,
             DELAY_TEST_TARGET_HTTP_PATH,
             connect_timeout,
+            stop_event,
         )
         return DelayTestResult(
             latency_ms=latency_ms,
@@ -310,6 +332,7 @@ def measure_delay_with_temporary_runtime(
 
 __all__ = [
     "DelayTestError",
+    "DelayTestAborted",
     "DelayTestResult",
     "measure_delay_with_temporary_runtime",
 ]

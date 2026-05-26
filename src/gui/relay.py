@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 import threading
+from threading import Event
 from typing import Any
 from tkinter import messagebox
 
@@ -16,7 +17,10 @@ from src.core.config.app_config import (
     replace_xray_profiles,
 )
 from src.core.runtime.runtime_controller import sync_connection_mode_change
-from src.services.delay_test import measure_delay_with_temporary_runtime
+from src.services.delay_test import (
+    DelayTestAborted,
+    measure_delay_with_temporary_runtime,
+)
 from src.services import relay_runtime
 
 __all__ = [
@@ -30,6 +34,7 @@ __all__ = [
     "build_headless_command",
     "start_relay",
     "test_delay",
+    "stop_delay_tests",
     "run_delay_tests",
     "stop_relay",
     "read_process_output",
@@ -207,7 +212,7 @@ def start_relay(panel: Any) -> None:
     threading.Thread(target=panel._monitor_process, args=(panel.process,), daemon=True).start()
 
 
-def test_delay(panel: Any) -> None:
+def test_delay(panel: Any, stop_event: Event | None = None) -> None:
     if panel._is_process_running():
         messagebox.showinfo(
             "Relay Running",
@@ -240,6 +245,8 @@ def test_delay(panel: Any) -> None:
         return
 
     panel.delay_test_in_progress = True
+    if stop_event is not None:
+        stop_event.clear()
     prepare_profiles_for_delay_test(panel, selected_profile_ids)
     panel.status_var.set(f"Testing Delay (0/{len(delay_jobs)})...")
     panel._sync_button_state()
@@ -250,21 +257,50 @@ def test_delay(panel: Any) -> None:
     threading.Thread(target=panel._run_delay_tests, args=(delay_jobs,), daemon=True).start()
 
 
+def stop_delay_tests(panel: Any) -> None:
+    if not panel.delay_test_in_progress:
+        return
+
+    stop_event: Event | None = getattr(panel, "delay_test_stop_event", None)
+    if stop_event is not None:
+        stop_event.set()
+    panel._append_log("[delay] stop requested; finishing current test and cancelling remaining")
+
+
 def run_delay_tests(
     panel: Any,
     delay_jobs: list[tuple[str, str, dict[str, object]]],
 ) -> None:
+    stop_event: Event | None = getattr(panel, "delay_test_stop_event", None)
     total_jobs = len(delay_jobs)
+    cancelled = False
     try:
         headless_command = relay_runtime.build_headless_command()
         for index, (profile_id, profile_label, config) in enumerate(delay_jobs, start=1):
+            # Check for stop signal before starting the next test
+            if stop_event is not None and stop_event.is_set():
+                cancelled = True
+                remaining = total_jobs - (index - 1)
+                panel.log_queue.put(
+                    ("delay-cancelled", profile_id, profile_label, remaining, total_jobs)
+                )
+                continue
+
             panel.log_queue.put(("delay-started", profile_id, profile_label, index, total_jobs))
             try:
                 result = measure_delay_with_temporary_runtime(
                     config,
                     headless_command,
                     log_callback=lambda message, label=profile_label: panel._queue_profile_delay_log(label, message),
+                    stop_event=stop_event,
                 )
+            except DelayTestAborted:
+                cancelled = True
+                remaining = total_jobs - (index - 1)
+                panel.log_queue.put(
+                    ("delay-cancelled", profile_id, profile_label, remaining, total_jobs)
+                )
+                continue
             except Exception as exc:
                 try:
                     save_delay_result(profile_id, "", "Failed", "error")
@@ -279,7 +315,7 @@ def run_delay_tests(
                     pass
                 panel.log_queue.put(("delay-result", profile_id, profile_label, result, index, total_jobs))
     finally:
-        panel.log_queue.put(("delay-finished", total_jobs))
+        panel.log_queue.put(("delay-finished", total_jobs, cancelled))
 
 
 def stop_relay(panel: Any) -> None:

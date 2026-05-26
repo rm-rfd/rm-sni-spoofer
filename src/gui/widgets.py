@@ -333,6 +333,15 @@ class SurfaceButton:
 
         self._redraw()
 
+    def set_text(self, text: str) -> None:
+        if text == self._text:
+            return
+        self._text = text
+        self._apply_style()
+
+    def set_command(self, command: Callable[[], None] | None) -> None:
+        self._command = command
+
     def _on_enter(self, _event: tk.Event[tk.Misc]) -> None:
         if self._disabled:
             return
