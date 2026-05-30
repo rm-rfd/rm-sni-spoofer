@@ -20,7 +20,7 @@ The connection mode controls what the app owns while the relay is running:
 - `set system proxy`: the app points the Windows system proxy at `127.0.0.1:LOCAL_PROXY_PORT` while the relay is running.
 - `tunnel whole system`: the app uses the bundled Xray TUN backend with `wintun.dll`, moves the default IPv4 route onto the Xray adapter, pins `CONNECT_IP` outside the tunnel, applies `TUNNEL_DNS_SERVERS` to the tunnel adapter, and restores those changes on stop or stale-state repair. This mode requires administrator rights and carries UDP traffic through the tunnel backend.
 
-The GUI stores direct `vless://` and `trojan://` share links in an `XRAY Profiles` table, lets you mark one row active, and runs delay tests for selected rows. Only the active profile powers the relay. Delay tests are available only in the proxy-based modes and are intentionally blocked while `tunnel whole system` is selected.
+The GUI stores direct `vless://` and `trojan://` share links in an `XRAY Profiles` table, lets you mark one row active, and runs delay tests for selected rows. Only the active profile powers the relay. Delay tests are available only in the proxy-based modes, can run while the main relay is already running, and remain blocked while `tunnel whole system` is selected.
 
 ## Key Limits
 
@@ -101,7 +101,7 @@ In `clear system proxy` mode, Windows proxy settings are cleared while the relay
 
 In `tunnel whole system` mode, the app must be started as Administrator. While that mode is running, the app brings up the bundled Xray TUN adapter, installs a direct `/32` route for `CONNECT_IP` through the pre-tunnel gateway, moves the default IPv4 route to the tunnel adapter, applies `TUNNEL_DNS_SERVERS` to the tunnel adapter, and restores those app-owned route and DNS changes when the relay stops or stale tunnel state is repaired.
 
-Delay tests remain limited to the proxy-based modes because they use temporary runtimes and should not take over system routes or DNS.
+Delay tests remain limited to the proxy-based modes because they use isolated temporary runtimes and should not take over system routes, DNS, or the running relay's ownership state.
 
 ## Build
 

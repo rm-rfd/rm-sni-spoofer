@@ -46,10 +46,14 @@ def update_running_runtime_config(
     return request_running_xray_reload(runtime_pid, timeout=timeout)
 
 
-def build_headless_command() -> list[str]:
+def build_headless_command(*, isolated_runtime: bool = False) -> list[str]:
     if getattr(sys, "frozen", False):
-        return [sys.executable, "--headless"]
-    return [sys.executable, "-u", "-m", "src", "--headless"]
+        command = [sys.executable, "--headless"]
+    else:
+        command = [sys.executable, "-u", "-m", "src", "--headless"]
+    if isolated_runtime:
+        command.append("--delay-test-runtime")
+    return command
 
 
 def start_relay_runtime(config: dict[str, object]) -> StartedRelayRuntime:

@@ -335,10 +335,11 @@ def start_relay(panel: Any) -> None:
 
 
 def test_delay(panel: Any, stop_event: Event | None = None) -> None:
-    if panel._is_process_running():
+    connection_mode = normalize_connection_mode(panel.connection_mode_var.get())
+    if connection_mode == "tunnel whole system":
         messagebox.showinfo(
-            "Relay Running",
-            "Stop the current relay before running a temporary delay test.",
+            "Delay Test Unavailable",
+            "Delay tests are not available in tunnel whole system mode. Stop the app or switch to clear system proxy or set system proxy mode before testing profiles.",
             parent=panel,
         )
         return
@@ -374,7 +375,7 @@ def test_delay(panel: Any, stop_event: Event | None = None) -> None:
     panel._sync_button_state()
     panel._append_log(
         f"[delay] queued {len(delay_jobs)} selected profile(s) for proxied HTTPS GET to "
-        "https://www.google.com/generate_204 through a temporary relay and Xray runtime"
+        "https://www.google.com/generate_204 through an isolated temporary relay and Xray runtime"
     )
     threading.Thread(target=panel._run_delay_tests, args=(delay_jobs,), daemon=True).start()
 
@@ -397,7 +398,7 @@ def run_delay_tests(
     total_jobs = len(delay_jobs)
     cancelled = False
     try:
-        headless_command = relay_runtime.build_headless_command()
+        headless_command = relay_runtime.build_headless_command(isolated_runtime=True)
         for index, (profile_id, profile_label, config) in enumerate(delay_jobs, start=1):
             # Check for stop signal before starting the next test
             if stop_event is not None and stop_event.is_set():

@@ -152,8 +152,12 @@ def log_line(message: str = "") -> None:
     stdout.flush()
 
 
-def run_headless(config_path: str | None = None) -> int:
-    controller = RelayRuntimeController(config_path=config_path, log_callback=log_line)
+def run_headless(config_path: str | None = None, *, isolated_runtime: bool = False) -> int:
+    controller = RelayRuntimeController(
+        config_path=config_path,
+        log_callback=log_line,
+        isolated_runtime=isolated_runtime,
+    )
     try:
         xray_settings = controller.start()
         controller.start_packet_injector()

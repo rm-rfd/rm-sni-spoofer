@@ -14,14 +14,22 @@ def parse_args() -> argparse.Namespace:
         "--config",
         help="Optional path to an alternate config.json file.",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--delay-test-runtime",
+        action="store_true",
+        help="Run headless without taking ownership of runtime state or system proxy; used for temporary delay tests.",
+    )
+    args = parser.parse_args()
+    if args.delay_test_runtime and not args.headless:
+        parser.error("--delay-test-runtime requires --headless")
+    return args
 
 
 def cli_main() -> int:
     args = parse_args()
     runtime_state.set_config_path_override(args.config)
     if args.headless:
-        return run_headless(args.config)
+        return run_headless(args.config, isolated_runtime=args.delay_test_runtime)
 
     from src.gui.window import launch_gui
 

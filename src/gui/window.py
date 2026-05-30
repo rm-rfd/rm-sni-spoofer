@@ -721,7 +721,7 @@ class ControlPanel(tk.Tk):
             buttons,
             theme=THEME,
             fonts=self._font_families,
-            text="Start Relay",
+            text="Start",
             icon_glyph=self._icon_glyph("bolt"),
             variant="primary",
             command=self.start_relay,
@@ -732,7 +732,7 @@ class ControlPanel(tk.Tk):
             buttons,
             theme=THEME,
             fonts=self._font_families,
-            text="Stop Relay",
+            text="Stop",
             icon_glyph=self._icon_glyph("stop_circle"),
             variant="secondary",
             command=self.stop_relay,
@@ -1061,7 +1061,7 @@ class ControlPanel(tk.Tk):
             self.test_delay_button.set_text("Stop Tests")
             self.test_delay_button.set_command(self.stop_delay_tests)
             self.test_delay_button.state(["!disabled"])
-        elif is_running or not has_delay_selection:
+        elif not has_delay_selection:
             self.test_delay_button.set_text("Test Delay")
             self.test_delay_button.set_command(self.test_delay)
             self.test_delay_button.state(["disabled"])
@@ -1324,7 +1324,7 @@ class ControlPanel(tk.Tk):
 
         if self._is_process_running() and self.process is not None:
             should_close = messagebox.askyesno(
-                "Stop Relay",
+                "Stop",
                 "The relay is still running. Stop it and close the control panel?",
                 parent=self,
             )

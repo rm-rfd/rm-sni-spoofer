@@ -250,6 +250,7 @@ def repair_stale_runtime_ownership_state(
 class RelayRuntimeController:
     config_path: str | None = None
     log_callback: LogCallback | None = None
+    isolated_runtime: bool = False
 
     def __post_init__(self) -> None:
         self._lifecycle_lock = threading.RLock()
@@ -271,11 +272,17 @@ class RelayRuntimeController:
 
     def start(self) -> XrayLocalProxySettings | None:
         with self._lifecycle_lock:
-            repair_stale_runtime_ownership_state(log_callback=self.log_callback)
-            cleanup_runtime_command_files()
+            if not self.isolated_runtime:
+                repair_stale_runtime_ownership_state(log_callback=self.log_callback)
+                cleanup_runtime_command_files()
             runtime_state.load_runtime_settings(self.config_path)
 
             connection_mode = get_connection_mode(runtime_state.config)
+            if self.isolated_runtime and connection_mode == "tunnel whole system":
+                raise ValueError(
+                    "Temporary delay-test runtimes are not available while CONNECTION_MODE is "
+                    "tunnel whole system. Switch to a proxy mode before testing profiles."
+                )
             if connection_mode == "tunnel whole system":
                 _ensure_tunnel_mode_prerequisites()
 
@@ -288,7 +295,8 @@ class RelayRuntimeController:
                 config_path="" if not self.config_path else os.path.abspath(self.config_path),
                 created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
             )
-            write_runtime_ownership_state(self.ownership_state)
+            if not self.isolated_runtime:
+                write_runtime_ownership_state(self.ownership_state)
             try:
                 self.xray_manager, self.xray_settings = runtime_state.build_xray_manager()
                 if connection_mode == "tunnel whole system":
@@ -296,12 +304,14 @@ class RelayRuntimeController:
                 else:
                     if self.xray_manager is not None:
                         self.xray_manager.start()
-                    self._apply_connection_mode()
+                    if not self.isolated_runtime:
+                        self._apply_connection_mode()
             except Exception:
                 self.stop()
                 raise
 
-            self._start_command_watcher()
+            if not self.isolated_runtime:
+                self._start_command_watcher()
             if not self._atexit_registered:
                 atexit.register(self.stop)
                 self._atexit_registered = True
@@ -330,7 +340,8 @@ class RelayRuntimeController:
                 return
             self._stopped = True
             self._stop_command_watcher()
-            self._reload_ownership_state_from_disk()
+            if not self.isolated_runtime:
+                self._reload_ownership_state_from_disk()
             cleanup_marker = True
             try:
                 self._restore_system_proxy_if_owned()
@@ -353,9 +364,10 @@ class RelayRuntimeController:
                 self.xray_manager = None
                 self.xray_settings = None
                 self.packet_injector = None
-                cleanup_runtime_command_files()
-                if cleanup_marker:
-                    cleanup_runtime_ownership_state()
+                if not self.isolated_runtime:
+                    cleanup_runtime_command_files()
+                    if cleanup_marker:
+                        cleanup_runtime_ownership_state()
 
     def _start_tunnel_backend(self, config: dict[str, object]) -> None:
         if self.xray_manager is None or self.xray_settings is None:
@@ -381,6 +393,8 @@ class RelayRuntimeController:
             )
 
     def _reload_ownership_state_from_disk(self) -> None:
+        if self.isolated_runtime:
+            return
         if self.ownership_state is None:
             return
         latest_state = load_runtime_ownership_state()
@@ -473,7 +487,8 @@ class RelayRuntimeController:
         if self.ownership_state is None:
             raise RuntimeError("runtime ownership state is not initialized")
         self.ownership_state = replace(self.ownership_state, **changes)
-        write_runtime_ownership_state(self.ownership_state)
+        if not self.isolated_runtime:
+            write_runtime_ownership_state(self.ownership_state)
 
     def _start_command_watcher(self) -> None:
         self._command_stop_event.clear()
@@ -555,6 +570,8 @@ class RelayRuntimeController:
 
     def reload_xray_from_config(self) -> XrayLocalProxySettings | None:
         with self._lifecycle_lock:
+            if self.isolated_runtime:
+                raise RuntimeError("isolated delay-test runtimes do not accept Xray reload commands")
             if self.ownership_state is None:
                 raise RuntimeError("runtime ownership state is not initialized")
 
