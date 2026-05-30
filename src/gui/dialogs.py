@@ -52,7 +52,7 @@ class ShareUrlDialog(simpledialog.Dialog):
         if isinstance(master, tk.Widget):
             master.configure(background=THEME["shell"])
 
-        container = ttk.Frame(master, style="Section.TFrame", padding=(16, 16, 16, 16))
+        container = ttk.Frame(master, style="Section.TFrame", padding=(12, 12, 12, 12))
         container.grid(row=0, column=0, sticky="nsew")
         container.columnconfigure(0, weight=1)
         container.rowconfigure(1, weight=1)
@@ -61,7 +61,7 @@ class ShareUrlDialog(simpledialog.Dialog):
             container,
             text="Paste a direct vless:// or trojan:// share link.",
             style="Body.TLabel",
-        ).grid(row=0, column=0, sticky="w", pady=(0, 10))
+        ).grid(row=0, column=0, sticky="w", pady=(0, 8))
 
         self.url_text = tk.Text(
             container,
@@ -75,8 +75,8 @@ class ShareUrlDialog(simpledialog.Dialog):
             foreground=THEME["text"],
             insertbackground=THEME["text"],
             selectbackground=THEME["selection"],
-            padx=12,
-            pady=12,
+            padx=8,
+            pady=8,
         )
         self.url_text.grid(row=1, column=0, sticky="nsew")
         self.url_text.insert("1.0", self.initial_url)
@@ -92,7 +92,7 @@ class ShareUrlDialog(simpledialog.Dialog):
         return self.url_text
 
     def buttonbox(self) -> None:
-        box = ttk.Frame(self, style="Shell.TFrame", padding=(16, 0, 16, 16))
+        box = ttk.Frame(self, style="Shell.TFrame", padding=(12, 0, 12, 12))
         box.pack(fill="x")
         box.columnconfigure(0, weight=1)
 
@@ -100,7 +100,7 @@ class ShareUrlDialog(simpledialog.Dialog):
         buttons.grid(row=0, column=1, sticky="e")
 
         save_button = ttk.Button(buttons, text="Save", style="Primary.TButton", command=self.ok)
-        save_button.grid(row=0, column=0, padx=(0, 8))
+        save_button.grid(row=0, column=0, padx=(0, 6))
         cancel_button = ttk.Button(buttons, text="Cancel", style="Secondary.TButton", command=self.cancel)
         cancel_button.grid(row=0, column=1)
         save_button.focus_set()
@@ -127,7 +127,7 @@ class HowToRunDialog(simpledialog.Dialog):
         if isinstance(master, tk.Widget):
             master.configure(background=THEME["shell"])
 
-        container = ttk.Frame(master, style="Section.TFrame", padding=(16, 16, 16, 16))
+        container = ttk.Frame(master, style="Section.TFrame", padding=(12, 12, 12, 12))
         container.grid(row=0, column=0, sticky="nsew")
         container.columnconfigure(0, weight=1)
 
@@ -138,9 +138,9 @@ class HowToRunDialog(simpledialog.Dialog):
             anchor="e",
             justify="right",
             font=("Segoe UI", 14, "bold"),
-        ).grid(row=0, column=0, sticky="e", pady=(0, 8))
+        ).grid(row=0, column=0, sticky="e", pady=(0, 6))
 
-        instructions_frame = ttk.Frame(container, style="Card.TFrame", padding=(16, 16, 16, 16))
+        instructions_frame = ttk.Frame(container, style="Card.TFrame", padding=(12, 12, 12, 12))
         instructions_frame.grid(row=1, column=0, sticky="ew")
         instructions_frame.columnconfigure(0, weight=1)
 
@@ -157,7 +157,7 @@ class HowToRunDialog(simpledialog.Dialog):
         return None
 
     def buttonbox(self) -> None:
-        box = ttk.Frame(self, style="Shell.TFrame", padding=(16, 0, 16, 16))
+        box = ttk.Frame(self, style="Shell.TFrame", padding=(12, 0, 12, 12))
         box.pack(fill="x")
 
         close_button = ttk.Button(box, text="Close", style="Secondary.TButton", command=self.cancel)
@@ -177,7 +177,7 @@ class SupportUsDialog(simpledialog.Dialog):
         if isinstance(master, tk.Widget):
             master.configure(background=THEME["shell"])
 
-        container = ttk.Frame(master, style="Section.TFrame", padding=(16, 16, 16, 16))
+        container = ttk.Frame(master, style="Section.TFrame", padding=(12, 12, 12, 12))
         container.grid(row=0, column=0, sticky="nsew")
         container.columnconfigure(0, weight=1)
 
@@ -185,7 +185,7 @@ class SupportUsDialog(simpledialog.Dialog):
             container,
             text="Support the Project",
             style="SectionTitle.TLabel",
-        ).grid(row=0, column=0, sticky="w", pady=(0, 10))
+        ).grid(row=0, column=0, sticky="w", pady=(0, 8))
 
         message = (
             "If RM SNI Spoofer helps you, you can support continued maintenance "
@@ -199,11 +199,11 @@ class SupportUsDialog(simpledialog.Dialog):
             font=("Segoe UI", 10),
             justify="left",
             wraplength=520,
-            padx=16,
-            pady=16,
+            padx=12,
+            pady=12,
         ).grid(row=1, column=0, sticky="ew")
 
-        address_wrap = ttk.Frame(container, style="Card.TFrame", padding=(16, 16, 16, 16))
+        address_wrap = ttk.Frame(container, style="Card.TFrame", padding=(12, 12, 12, 12))
         address_wrap.grid(row=2, column=0, sticky="ew", pady=(12, 0))
         address_wrap.columnconfigure(0, weight=1)
 
@@ -211,7 +211,7 @@ class SupportUsDialog(simpledialog.Dialog):
             row=0,
             column=0,
             sticky="w",
-            pady=(0, 8),
+            pady=(0, 6),
         )
         self._address_var = tk.StringVar(value=DONATION_ADDRESS)
         address_entry = ttk.Entry(
@@ -224,7 +224,7 @@ class SupportUsDialog(simpledialog.Dialog):
         return address_entry
 
     def buttonbox(self) -> None:
-        box = ttk.Frame(self, style="Shell.TFrame", padding=(16, 0, 16, 16))
+        box = ttk.Frame(self, style="Shell.TFrame", padding=(12, 0, 12, 12))
         box.pack(fill="x")
         box.columnconfigure(0, weight=1)
 
@@ -232,7 +232,7 @@ class SupportUsDialog(simpledialog.Dialog):
         buttons.grid(row=0, column=1, sticky="e")
 
         copy_button = ttk.Button(buttons, text="Copy Address", style="Primary.TButton", command=self._copy_address)
-        copy_button.grid(row=0, column=0, padx=(0, 8))
+        copy_button.grid(row=0, column=0, padx=(0, 6))
         close_button = ttk.Button(buttons, text="Close", style="Secondary.TButton", command=self.cancel)
         close_button.grid(row=0, column=1)
         copy_button.focus_set()

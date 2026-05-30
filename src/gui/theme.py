@@ -159,7 +159,7 @@ def _configure_button_style(
         bordercolor=bordercolor,
         lightcolor=bordercolor,
         darkcolor=bordercolor,
-        padding=(14, 9),
+        padding=(10, 6),
         relief="flat",
         focusthickness=0,
         font=(font_families["body"], 10, "bold"),
@@ -304,7 +304,7 @@ def configure_styles(window: tk.Misc, font_families: dict[str, str]) -> None:
         lightcolor=THEME["input_border"],
         darkcolor=THEME["input_border"],
         insertcolor=THEME["text"],
-        padding=(10, 7),
+        padding=(8, 5),
         relief="flat",
         font=(font_families["mono"], 11),
     )
@@ -324,7 +324,7 @@ def configure_styles(window: tk.Misc, font_families: dict[str, str]) -> None:
         lightcolor=THEME["input_border"],
         darkcolor=THEME["input_border"],
         arrowcolor=THEME["accent_text"],
-        padding=(10, 7),
+        padding=(8, 5),
         relief="flat",
         font=(font_families["mono"], 10),
     )
@@ -348,7 +348,7 @@ def configure_styles(window: tk.Misc, font_families: dict[str, str]) -> None:
         bordercolor=THEME["card"],
         lightcolor=THEME["card"],
         darkcolor=THEME["card"],
-        rowheight=38,
+        rowheight=28,
         relief="flat",
         font=(font_families["body"], 10),
     )
@@ -375,7 +375,7 @@ def configure_styles(window: tk.Misc, font_families: dict[str, str]) -> None:
         foreground=THEME["muted_alt"],
         borderwidth=0,
         relief="flat",
-        padding=(8, 6),
+        padding=(6, 4),
         font=(font_families["label"], 8, "bold"),
     )
     style.layout(

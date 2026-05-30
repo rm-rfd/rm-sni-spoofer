@@ -318,12 +318,12 @@ class ControlPanel(tk.Tk):
         main_shell.columnconfigure(0, weight=1)
         main_shell.rowconfigure(1, weight=1)
 
-        main = ttk.Frame(main_shell, style="Main.TFrame", padding=(24, 18, 24, 24))
+        main = ttk.Frame(main_shell, style="Main.TFrame", padding=(10, 10, 10, 10))
         main.grid(row=1, column=0, sticky="nsew")
         main.columnconfigure(0, weight=1)
-        main.rowconfigure(1, weight=2, minsize=190)
-        main.rowconfigure(2, weight=5, minsize=300)
-        main.rowconfigure(4, weight=3, minsize=220)
+        main.rowconfigure(1, weight=2, minsize=150)
+        main.rowconfigure(2, weight=6, minsize=380)
+        main.rowconfigure(4, weight=3, minsize=200)
 
         self._build_settings_section(main)
         self._build_profiles_section(main)
@@ -333,13 +333,13 @@ class ControlPanel(tk.Tk):
         self._sync_button_state()
 
     def _build_sidebar(self, parent: tk.Frame) -> None:
-        brand = tk.Frame(parent, bg=THEME["low"], padx=20, pady=18)
+        brand = tk.Frame(parent, bg=THEME["low"], padx=16, pady=14)
         brand.grid(row=0, column=0, sticky="ew")
         brand.columnconfigure(0, weight=1)
 
         ttk.Label(brand, text=APP_NAME, style="SidebarTitle.TLabel").grid(row=0, column=0, sticky="w")
 
-        nav = tk.Frame(parent, bg=THEME["low"], padx=10, pady=8)
+        nav = tk.Frame(parent, bg=THEME["low"], padx=8, pady=6)
         nav.grid(row=1, column=0, sticky="ew")
         nav.columnconfigure(0, weight=1)
 
@@ -354,7 +354,7 @@ class ControlPanel(tk.Tk):
         )
         dashboard_button.grid(row=0, column=0, sticky="ew")
 
-        footer = tk.Frame(parent, bg=THEME["low"], padx=14, pady=14)
+        footer = tk.Frame(parent, bg=THEME["low"], padx=10, pady=10)
         footer.grid(row=3, column=0, sticky="ew")
         footer.columnconfigure(0, weight=1)
 
@@ -367,7 +367,7 @@ class ControlPanel(tk.Tk):
             variant="sidebar_outline",
             command=self._show_how_to_run_dialog,
         )
-        how_to_run_button.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        how_to_run_button.grid(row=0, column=0, sticky="ew", pady=(0, 6))
 
         updates_button = SurfaceButton(
             footer,
@@ -389,10 +389,10 @@ class ControlPanel(tk.Tk):
             variant="sidebar_outline",
             command=self._show_support_dialog,
         )
-        support_button.grid(row=2, column=0, sticky="ew", pady=(10, 0))
+        support_button.grid(row=2, column=0, sticky="ew", pady=(8, 0))
 
     def _build_header(self, parent: ttk.Frame) -> None:
-        header = tk.Frame(parent, bg=THEME["shell"], padx=24, pady=14)
+        header = tk.Frame(parent, bg=THEME["shell"], padx=18, pady=10)
         header.grid(row=0, column=0, sticky="ew")
         header.columnconfigure(0, weight=1)
 
@@ -402,15 +402,15 @@ class ControlPanel(tk.Tk):
             fill=THEME["card"],
             border=THEME["border"],
             radius=18,
-            padding=(16, 16, 16, 16),
+            padding=(12, 12, 12, 12),
         )
-        shell.grid(row=1, column=0, sticky="ew", pady=(0, 16))
+        shell.grid(row=1, column=0, sticky="ew", pady=(0, 12))
         section = shell.content
         for column in range(3):
             section.columnconfigure(column, weight=1)
 
         header = ttk.Frame(section, style="Section.TFrame")
-        header.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 10))
+        header.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 8))
         header.columnconfigure(0, weight=1)
 
         ttk.Label(header, text="Editable Settings", style="SectionTitle.TLabel").grid(
@@ -420,12 +420,12 @@ class ControlPanel(tk.Tk):
         )
 
         lan_share_wrap = ttk.Frame(header, style="Section.TFrame")
-        lan_share_wrap.grid(row=0, column=1, sticky="e", padx=(0, 12))
+        lan_share_wrap.grid(row=0, column=1, sticky="e", padx=(0, 8))
         ttk.Label(
             lan_share_wrap,
             textvariable=self.lan_share_header_var,
             style="CardLabel.TLabel",
-        ).grid(row=0, column=0, sticky="e", padx=(0, 8))
+        ).grid(row=0, column=0, sticky="e", padx=(0, 6))
         self.lan_share_switch = ToggleSwitch(
             lan_share_wrap,
             theme=THEME,
@@ -435,12 +435,12 @@ class ControlPanel(tk.Tk):
         self.lan_share_switch.grid(row=0, column=1, sticky="e")
 
         connection_mode_wrap = ttk.Frame(header, style="Section.TFrame")
-        connection_mode_wrap.grid(row=0, column=2, sticky="e", padx=(0, 12))
+        connection_mode_wrap.grid(row=0, column=2, sticky="e", padx=(0, 8))
         ttk.Label(connection_mode_wrap, text="Connection Mode", style="CardLabel.TLabel").grid(
             row=0,
             column=0,
             sticky="e",
-            padx=(0, 8),
+            padx=(0, 6),
         )
         self.connection_mode_combo = ttk.Combobox(
             connection_mode_wrap,
@@ -459,7 +459,7 @@ class ControlPanel(tk.Tk):
             row=0,
             column=0,
             sticky="e",
-            padx=(0, 8),
+            padx=(0, 6),
         )
         self.log_level_combo = ttk.Combobox(
             log_level_wrap,
@@ -510,11 +510,11 @@ class ControlPanel(tk.Tk):
             fill=THEME["card"],
             border=THEME["border"],
             radius=14,
-            padding=(12, 10, 12, 10),
+            padding=(8, 6, 8, 6),
         )
-        left_pad = 0 if column == 0 else 8
-        right_pad = 0 if column == (total_columns - 1) else 8
-        card.grid(row=row, column=column, sticky="ew", padx=(left_pad, right_pad), pady=4)
+        left_pad = 0 if column == 0 else 6
+        right_pad = 0 if column == (total_columns - 1) else 6
+        card.grid(row=row, column=column, sticky="ew", padx=(left_pad, right_pad), pady=3)
         card.content.columnconfigure(0, weight=1)
 
         top = tk.Frame(card.content, bg=THEME["card"])
@@ -525,7 +525,7 @@ class ControlPanel(tk.Tk):
         badge = self._build_icon_badge(top, icon_name)
         badge.grid(row=0, column=1, sticky="e")
         entry = ttk.Entry(card.content, textvariable=variable, style="Card.TEntry")
-        entry.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        entry.grid(row=1, column=0, sticky="ew", pady=(8, 0))
         card.refresh()
         return entry
 
@@ -535,15 +535,15 @@ class ControlPanel(tk.Tk):
             fill=THEME["card"],
             border=THEME["border"],
             radius=18,
-            padding=(16, 16, 16, 16),
+            padding=(12, 12, 12, 12),
         )
-        shell.grid(row=2, column=0, sticky="nsew", pady=(0, 16))
+        shell.grid(row=2, column=0, sticky="nsew", pady=(0, 12))
         section = shell.content
         section.columnconfigure(0, weight=1)
         section.rowconfigure(1, weight=1)
 
         header = ttk.Frame(section, style="Section.TFrame")
-        header.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 8))
         header.columnconfigure(0, weight=1)
 
         title_wrap = tk.Frame(header, bg=THEME["card"])
@@ -556,7 +556,7 @@ class ControlPanel(tk.Tk):
             font=(self._font_families["icon"], 12),
             padx=0,
         ).pack(side="left")
-        ttk.Label(title_wrap, text="Xray Profiles", style="SectionTitle.TLabel").pack(side="left", padx=(8, 0))
+        ttk.Label(title_wrap, text="Xray Profiles", style="SectionTitle.TLabel").pack(side="left", padx=(6, 0))
 
         actions = tk.Frame(header, bg=THEME["card"])
         actions.grid(row=0, column=1, sticky="e")
@@ -569,7 +569,7 @@ class ControlPanel(tk.Tk):
             variant="primary",
             command=self._add_profile,
         )
-        self.profile_add_button.grid(row=0, column=0, padx=(0, 8))
+        self.profile_add_button.grid(row=0, column=0, padx=(0, 6))
 
         self.profile_edit_button = SurfaceButton(
             actions,
@@ -579,7 +579,7 @@ class ControlPanel(tk.Tk):
             variant="secondary",
             command=self._edit_selected_profile,
         )
-        self.profile_edit_button.grid(row=0, column=1, padx=(0, 8))
+        self.profile_edit_button.grid(row=0, column=1, padx=(0, 6))
 
         self.profile_remove_button = SurfaceButton(
             actions,
@@ -589,7 +589,7 @@ class ControlPanel(tk.Tk):
             variant="secondary",
             command=self._remove_selected_profiles,
         )
-        self.profile_remove_button.grid(row=0, column=2, padx=(0, 8))
+        self.profile_remove_button.grid(row=0, column=2, padx=(0, 6))
 
         self.profile_set_active_button = SurfaceButton(
             actions,
@@ -638,23 +638,23 @@ class ControlPanel(tk.Tk):
             style="Profiles.Treeview",
         )
         self.profile_tree.heading("active", text="Active", command=lambda: self._sort_profiles("active"))
-        self.profile_tree.heading("remark", text="Remark", command=lambda: self._sort_profiles("remark"))
-        self.profile_tree.heading("protocol", text="Type", command=lambda: self._sort_profiles("protocol"))
-        self.profile_tree.heading("address", text="Address", command=lambda: self._sort_profiles("address"))
-        self.profile_tree.heading("port", text="Port", command=lambda: self._sort_profiles("port"))
-        self.profile_tree.heading("transport", text="Transport", command=lambda: self._sort_profiles("transport"))
-        self.profile_tree.heading("security", text="Security", command=lambda: self._sort_profiles("security"))
-        self.profile_tree.heading("delay", text="Delay", command=lambda: self._sort_profiles("delay"))
-        self.profile_tree.heading("status", text="Status", command=lambda: self._sort_profiles("status"))
-        self.profile_tree.column("active", width=74, anchor="center", stretch=False)
-        self.profile_tree.column("remark", width=180, stretch=True)
-        self.profile_tree.column("protocol", width=84, anchor="center", stretch=False)
-        self.profile_tree.column("address", width=220, stretch=True)
-        self.profile_tree.column("port", width=70, anchor="center", stretch=False)
-        self.profile_tree.column("transport", width=90, anchor="center", stretch=False)
-        self.profile_tree.column("security", width=90, anchor="center", stretch=False)
-        self.profile_tree.column("delay", width=90, anchor="center", stretch=False)
-        self.profile_tree.column("status", width=110, anchor="center", stretch=False)
+        self.profile_tree.heading("remark", text="Remark", command=lambda: self._sort_profiles("remark"), anchor="w")
+        self.profile_tree.heading("protocol", text="Type", command=lambda: self._sort_profiles("protocol"), anchor="w")
+        self.profile_tree.heading("address", text="Address", command=lambda: self._sort_profiles("address"), anchor="w")
+        self.profile_tree.heading("port", text="Port", command=lambda: self._sort_profiles("port"), anchor="w")
+        self.profile_tree.heading("transport", text="Transport", command=lambda: self._sort_profiles("transport"), anchor="w")
+        self.profile_tree.heading("security", text="Security", command=lambda: self._sort_profiles("security"), anchor="w")
+        self.profile_tree.heading("delay", text="Delay", command=lambda: self._sort_profiles("delay"), anchor="w")
+        self.profile_tree.heading("status", text="Status", command=lambda: self._sort_profiles("status"), anchor="w")
+        self.profile_tree.column("active", width=50, anchor="w", stretch=False)
+        self.profile_tree.column("remark", width=180, anchor="w", stretch=True)
+        self.profile_tree.column("protocol", width=84, anchor="w", stretch=False)
+        self.profile_tree.column("address", width=220, anchor="w", stretch=True)
+        self.profile_tree.column("port", width=70, anchor="w", stretch=False)
+        self.profile_tree.column("transport", width=90, anchor="w", stretch=False)
+        self.profile_tree.column("security", width=80, anchor="w", stretch=False)
+        self.profile_tree.column("delay", width=80, anchor="w", stretch=False)
+        self.profile_tree.column("status", width=90, anchor="w", stretch=False)
         self.profile_tree.grid(row=0, column=0, sticky="nsew")
         self.profile_tree.tag_configure(
             "active_profile",
@@ -703,18 +703,18 @@ class ControlPanel(tk.Tk):
             row=2,
             column=0,
             sticky="w",
-            pady=(10, 0),
+            pady=(8, 0),
         )
         shell.refresh()
 
     def _build_actions_section(self, parent: ttk.Frame) -> None:
         section = ttk.Frame(parent, style="Main.TFrame", padding=(0, 0, 0, 0))
-        section.grid(row=3, column=0, sticky="ew", pady=(0, 16))
+        section.grid(row=3, column=0, sticky="ew", pady=(0, 12))
         section.columnconfigure(0, weight=1)
         section.columnconfigure(1, weight=0)
 
         divider = tk.Frame(section, bg=THEME["border"], height=1)
-        divider.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 14))
+        divider.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
 
         buttons = tk.Frame(section, bg=THEME["shell"])
         buttons.grid(row=1, column=0, sticky="w")
@@ -728,7 +728,7 @@ class ControlPanel(tk.Tk):
             variant="primary",
             command=self.start_relay,
         )
-        self.start_button.grid(row=0, column=0, padx=(0, 8))
+        self.start_button.grid(row=0, column=0, padx=(0, 6))
 
         self.stop_button = SurfaceButton(
             buttons,
@@ -739,7 +739,7 @@ class ControlPanel(tk.Tk):
             variant="secondary",
             command=self.stop_relay,
         )
-        self.stop_button.grid(row=0, column=1, padx=(0, 8))
+        self.stop_button.grid(row=0, column=1, padx=(0, 6))
 
         self.test_delay_button = SurfaceButton(
             buttons,
@@ -750,7 +750,7 @@ class ControlPanel(tk.Tk):
             variant="secondary",
             command=self.test_delay,
         )
-        self.test_delay_button.grid(row=0, column=2, padx=(0, 8))
+        self.test_delay_button.grid(row=0, column=2, padx=(0, 6))
 
         clear_logs_button = SurfaceButton(
             buttons,
@@ -775,10 +775,10 @@ class ControlPanel(tk.Tk):
             bg=THEME["low"],
             highlightbackground=THEME["border"],
             highlightthickness=1,
-            padx=7,
-            pady=3,
+            padx=5,
+            pady=2,
         )
-        self._relay_chip_frame.grid(row=0, column=1, sticky="w", padx=(12, 0))
+        self._relay_chip_frame.grid(row=0, column=1, sticky="w", padx=(8, 0))
         self._relay_chip_dot = tk.Label(
             self._relay_chip_frame,
             text="●",
@@ -793,7 +793,7 @@ class ControlPanel(tk.Tk):
             bg=THEME["low"],
             fg=THEME["text"],
             font=(self._font_families["label"], 7, "bold"),
-            padx=4,
+            padx=2,
         )
         self._relay_chip_label.pack(side="left")
 
@@ -803,7 +803,7 @@ class ControlPanel(tk.Tk):
             fill=THEME["card"],
             border=THEME["border"],
             radius=18,
-            padding=(16, 16, 16, 16),
+            padding=(12, 12, 12, 12),
         )
         shell.grid(row=4, column=0, sticky="nsew")
         section = shell.content
@@ -820,7 +820,7 @@ class ControlPanel(tk.Tk):
             fg=THEME["muted_alt"],
             font=(self._font_families["label"], 8, "bold"),
             anchor="w",
-            padx=14,
+            padx=10,
         ).pack(side="left", fill="y")
         tk.Label(
             header,
@@ -828,7 +828,7 @@ class ControlPanel(tk.Tk):
             bg=THEME["low"],
             fg=THEME["strong"],
             font=(self._font_families["body"], 8),
-            padx=12,
+            padx=8,
         ).pack(side="right", fill="y")
 
         self.log_text = tk.Text(
@@ -842,8 +842,8 @@ class ControlPanel(tk.Tk):
             selectbackground=THEME["selection"],
             relief="flat",
             borderwidth=0,
-            padx=14,
-            pady=12,
+            padx=10,
+            pady=8,
         )
         self.log_text.grid(row=1, column=0, sticky="nsew")
         self.log_text.tag_configure("delay_error", foreground=THEME["error"])
