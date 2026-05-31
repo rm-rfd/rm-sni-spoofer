@@ -43,6 +43,8 @@ __all__ = [
     "set_selected_profile_active",
     "paste_profiles_from_clipboard",
     "select_all_profiles",
+    "handle_profile_tree_shift_up_key",
+    "handle_profile_tree_shift_down_key",
     "handle_profile_tree_delete_key",
     "handle_profile_tree_activate_key",
 ]
@@ -149,6 +151,8 @@ def profile_row_values(panel: Any, profile: dict[str, object]) -> tuple[str, ...
 
 def profile_row_tags(panel: Any, profile_id: str) -> tuple[str, ...]:
     tags: list[str] = []
+    if profile_id in getattr(panel, "_selected_profile_ids", ()):
+        tags.append("selected_profile")
     if profile_id == panel.active_profile_id:
         tags.append("active_profile")
 
@@ -156,6 +160,12 @@ def profile_row_tags(panel: Any, profile_id: str) -> tuple[str, ...]:
     if status_state:
         tags.append(f"{status_state}_profile")
     return tuple(tags)
+
+
+def _refresh_profile_selection_tags(panel: Any) -> None:
+    for profile_id in panel.profile_tree.get_children(""):
+        if profile_id in panel.xray_profiles:
+            panel.profile_tree.item(profile_id, tags=profile_row_tags(panel, str(profile_id)))
 
 
 def sync_profile_selection_state(panel: Any, selection: tuple[str, ...] | None = None) -> tuple[str, ...]:
@@ -171,10 +181,7 @@ def sync_profile_selection_state(panel: Any, selection: tuple[str, ...] | None =
             profile_id for profile_id in selection if profile_id in panel.xray_profiles
         )
         panel._selected_profile_ids = logical_selection
-
-        active_profile_id = panel.active_profile_id
-        if active_profile_id and active_profile_id in selection:
-            panel.profile_tree.selection_remove(active_profile_id)
+        _refresh_profile_selection_tags(panel)
         return logical_selection
     finally:
         panel._profile_selection_syncing = False
@@ -191,9 +198,7 @@ def set_profile_selection(panel: Any, selection: tuple[str, ...]) -> tuple[str, 
         )
         panel._selected_profile_ids = logical_selection
 
-        tree_selection = tuple(
-            profile_id for profile_id in logical_selection if profile_id != panel.active_profile_id
-        )
+        tree_selection = logical_selection
         current_selection = tuple(str(profile_id) for profile_id in panel.profile_tree.selection())
 
         if tree_selection:
@@ -201,9 +206,7 @@ def set_profile_selection(panel: Any, selection: tuple[str, ...]) -> tuple[str, 
         elif current_selection:
             panel.profile_tree.selection_remove(current_selection)
 
-        active_profile_id = panel.active_profile_id
-        if active_profile_id and active_profile_id in current_selection:
-            panel.profile_tree.selection_remove(active_profile_id)
+        _refresh_profile_selection_tags(panel)
         return logical_selection
     finally:
         panel._profile_selection_syncing = False
@@ -368,6 +371,13 @@ def load_profiles_from_config(
     panel.active_profile_id = "" if active_profile is None else str(active_profile["id"])
     prune_profile_delay_state(panel)
 
+    resolved_selection = tuple(
+        profile_id for profile_id in selected_profile_ids if profile_id in panel.xray_profiles
+    )
+    if not resolved_selection and panel.active_profile_id in panel.xray_profiles:
+        resolved_selection = (panel.active_profile_id,)
+    panel._selected_profile_ids = resolved_selection
+
     panel.profile_tree.delete(*panel.profile_tree.get_children(""))
     for profile in profiles:
         profile_id = str(profile["id"])
@@ -378,12 +388,6 @@ def load_profiles_from_config(
             values=profile_row_values(panel, profile),
             tags=profile_row_tags(panel, profile_id),
         )
-
-    resolved_selection = tuple(
-        profile_id for profile_id in selected_profile_ids if profile_id in panel.xray_profiles
-    )
-    if not resolved_selection and panel.active_profile_id in panel.xray_profiles:
-        resolved_selection = (panel.active_profile_id,)
 
     set_profile_selection(panel, resolved_selection)
     focus_target = next(
@@ -774,6 +778,69 @@ def select_all_profiles(panel: Any) -> None:
         panel.profile_tree.focus(focus_target)
         panel.profile_tree.see(focus_target)
     update_profile_selection_state(panel)
+
+
+def _extend_profile_tree_selection(panel: Any, step: int) -> str:
+    if panel.delay_test_in_progress:
+        return "break"
+
+    profile_ids = tuple(str(profile_id) for profile_id in panel.profile_tree.get_children(""))
+    if not profile_ids:
+        return "break"
+
+    profile_index = {profile_id: index for index, profile_id in enumerate(profile_ids)}
+    selected_profile_ids = tuple(
+        profile_id
+        for profile_id in get_selected_profile_ids(panel)
+        if profile_id in profile_index
+    )
+
+    focused_profile_id = str(panel.profile_tree.focus())
+    focused_index = profile_index.get(focused_profile_id)
+    if focused_index is None:
+        if selected_profile_ids:
+            focused_index = profile_index[selected_profile_ids[0]]
+        else:
+            focused_index = 0 if step > 0 else len(profile_ids) - 1
+
+    if selected_profile_ids:
+        selected_indexes = sorted(profile_index[profile_id] for profile_id in selected_profile_ids)
+        if focused_index == selected_indexes[0]:
+            anchor_index = selected_indexes[-1]
+        elif focused_index == selected_indexes[-1]:
+            anchor_index = selected_indexes[0]
+        else:
+            anchor_index = focused_index
+    else:
+        anchor_index = focused_index
+
+    target_index = focused_index + step
+    if target_index < 0 or target_index >= len(profile_ids):
+        if selected_profile_ids:
+            panel.profile_tree.focus(profile_ids[focused_index])
+            panel.profile_tree.see(profile_ids[focused_index])
+        elif profile_ids:
+            panel.profile_tree.focus(profile_ids[focused_index])
+            panel.profile_tree.see(profile_ids[focused_index])
+        update_profile_selection_state(panel)
+        return "break"
+
+    start_index = min(anchor_index, target_index)
+    end_index = max(anchor_index, target_index)
+    next_selection = tuple(profile_ids[index] for index in range(start_index, end_index + 1))
+    set_profile_selection(panel, next_selection)
+    panel.profile_tree.focus(profile_ids[target_index])
+    panel.profile_tree.see(profile_ids[target_index])
+    update_profile_selection_state(panel)
+    return "break"
+
+
+def handle_profile_tree_shift_up_key(panel: Any) -> str:
+    return _extend_profile_tree_selection(panel, -1)
+
+
+def handle_profile_tree_shift_down_key(panel: Any) -> str:
+    return _extend_profile_tree_selection(panel, 1)
 
 
 def handle_profile_tree_delete_key(panel: Any) -> str:

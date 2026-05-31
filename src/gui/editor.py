@@ -8,6 +8,8 @@ from .theme import style_menu
 __all__ = [
     "install_context_menus",
     "bind_context_menu_classes",
+    "resolve_control_shortcut",
+    "handle_editor_control_shortcut",
     "show_context_menu",
     "set_insert_cursor_from_event",
     "widget_is_editable",
@@ -20,6 +22,19 @@ __all__ = [
     "delete_selection",
     "context_select_all",
 ]
+
+_CONTROL_SHORTCUT_KEYSYMS = {
+    "a": "select_all",
+    "c": "copy",
+    "v": "paste",
+    "x": "cut",
+}
+_CONTROL_SHORTCUT_KEYCODES = {
+    65: "select_all",
+    67: "copy",
+    86: "paste",
+    88: "cut",
+}
 
 
 def install_context_menus(panel: tk.Misc) -> None:
@@ -55,6 +70,53 @@ def install_context_menus(panel: tk.Misc) -> None:
 def bind_context_menu_classes(panel: tk.Misc) -> None:
     for widget_class in ("Entry", "TEntry", "TCombobox", "Text"):
         panel.bind_class(widget_class, "<Button-3>", panel._show_context_menu, add="+")
+        panel.bind_class(widget_class, "<Control-KeyPress>", panel._on_editor_control_shortcut, add="+")
+
+
+def resolve_control_shortcut(event: tk.Event[tk.Misc]) -> str | None:
+    keysym = str(getattr(event, "keysym", "")).lower()
+    action = _CONTROL_SHORTCUT_KEYSYMS.get(keysym)
+    if action is not None:
+        return action
+
+    try:
+        keycode = int(getattr(event, "keycode"))
+    except (TypeError, ValueError):
+        return None
+    return _CONTROL_SHORTCUT_KEYCODES.get(keycode)
+
+
+def handle_editor_control_shortcut(panel: tk.Misc, event: tk.Event[tk.Misc]) -> str:
+    widget = event.widget
+    if not isinstance(widget, (tk.Entry, ttk.Entry, ttk.Combobox, tk.Text)):
+        return ""
+
+    action = resolve_control_shortcut(event)
+    if action is None:
+        return ""
+
+    panel._context_menu_target = widget
+    widget.focus_set()
+
+    if action == "select_all":
+        context_select_all(panel)
+        return "break"
+
+    if action == "copy":
+        widget.event_generate("<<Copy>>")
+        return "break"
+
+    if action == "cut":
+        if widget_is_editable(widget):
+            widget.event_generate("<<Cut>>")
+        return "break"
+
+    if action == "paste":
+        if widget_is_editable(widget):
+            widget.event_generate("<<Paste>>")
+        return "break"
+
+    return ""
 
 
 def show_context_menu(panel: tk.Misc, event: tk.Event[tk.Misc]) -> str:

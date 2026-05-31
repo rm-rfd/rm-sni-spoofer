@@ -661,18 +661,20 @@ class ControlPanel(tk.Tk):
             background=THEME["selection"],
             foreground=THEME["accent_text"],
         )
+        self.profile_tree.tag_configure(
+            "selected_profile",
+            background=THEME["profile_selection"],
+            foreground=THEME["text"],
+        )
         self.profile_tree.tag_configure("queued_profile", foreground=THEME["muted"])
         self.profile_tree.tag_configure("testing_profile", foreground=THEME["warning"])
         self.profile_tree.tag_configure("success_profile", foreground=THEME["success"])
         self.profile_tree.tag_configure("error_profile", foreground=THEME["error"])
         self.profile_tree.bind("<<TreeviewSelect>>", self._on_profile_selection_changed, add="+")
         self.profile_tree.bind("<Double-1>", self._on_profile_double_click, add="+")
-        self.profile_tree.bind("<Control-c>", self._on_profile_tree_copy, add="+")
-        self.profile_tree.bind("<Control-C>", self._on_profile_tree_copy, add="+")
-        self.profile_tree.bind("<Control-v>", self._on_profile_tree_paste, add="+")
-        self.profile_tree.bind("<Control-V>", self._on_profile_tree_paste, add="+")
-        self.profile_tree.bind("<Control-a>", self._on_profile_tree_select_all, add="+")
-        self.profile_tree.bind("<Control-A>", self._on_profile_tree_select_all, add="+")
+        self.profile_tree.bind("<Control-KeyPress>", self._on_profile_tree_control_shortcut, add="+")
+        self.profile_tree.bind("<Shift-Up>", self._on_profile_tree_shift_up, add="+")
+        self.profile_tree.bind("<Shift-Down>", self._on_profile_tree_shift_down, add="+")
         self.profile_tree.bind("<Delete>", self._on_profile_tree_delete, add="+")
         self.profile_tree.bind("<Return>", self._on_profile_tree_activate, add="+")
         self.profile_tree.bind("<KP_Enter>", self._on_profile_tree_activate, add="+")
@@ -934,6 +936,9 @@ class ControlPanel(tk.Tk):
     def _context_select_all(self) -> None:
         editor_helpers.context_select_all(self)
 
+    def _on_editor_control_shortcut(self, event: tk.Event[tk.Misc]) -> str:
+        return editor_helpers.handle_editor_control_shortcut(self, event)
+
     def _copy_selected_profiles(self) -> None:
         profile_helpers.copy_selected_profiles(self)
 
@@ -951,6 +956,22 @@ class ControlPanel(tk.Tk):
     def _on_profile_tree_select_all(self, _event: tk.Event[tk.Misc] | None = None) -> str:
         profile_helpers.select_all_profiles(self)
         return "break"
+
+    def _on_profile_tree_shift_up(self, _event: tk.Event[tk.Misc] | None = None) -> str:
+        return profile_helpers.handle_profile_tree_shift_up_key(self)
+
+    def _on_profile_tree_shift_down(self, _event: tk.Event[tk.Misc] | None = None) -> str:
+        return profile_helpers.handle_profile_tree_shift_down_key(self)
+
+    def _on_profile_tree_control_shortcut(self, event: tk.Event[tk.Misc]) -> str:
+        action = editor_helpers.resolve_control_shortcut(event)
+        if action == "copy":
+            return self._on_profile_tree_copy(event)
+        if action == "paste":
+            return self._on_profile_tree_paste(event)
+        if action == "select_all":
+            return self._on_profile_tree_select_all(event)
+        return ""
 
     def _on_profile_tree_delete(self, _event: tk.Event[tk.Misc] | None = None) -> str:
         return profile_helpers.handle_profile_tree_delete_key(self)
